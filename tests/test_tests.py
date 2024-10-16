@@ -8,7 +8,7 @@ FILE_EXCEPTIONS = ["__init__.py"]
 
 def test_tests():
     test_dir = pathlib.Path("tests")
-    mod_dir = pathlib.Path("PACKAGE_NAME")
+    mod_dir = pathlib.Path("split-mwpm")
     if not mod_dir.exists():
         raise ValueError("module directory does not exist.")
 
