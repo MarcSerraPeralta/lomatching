@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 requires-python = ">=3.10"
-name = "PACKAGE_NAME"
-description = "DESCRIPTION" 
+name = "split-mwpm"
+description = "Decoder for the transversal logical S gate in surface codes based on MWPM." 
 version = "0.1.0"
 authors = [
     { name = "Marc Serra Peralta", email = "marcserraperalta@gmail.com" }
@@ -17,15 +17,13 @@ license = {file = "LICENSE"}
 readme = "README.md"
 dependencies = [
     "numpy",
-    "scipy",
-    "matplotlib",
-    "pyyaml",
+    "stim",
 ]
-keywords = ["SOME", "KEYWORDS"]
+keywords = ["MWPM", "QEC", "quantum error correction", "logical-gates", "decoder"]
 
 [tool.setuptools.packages.find]
-include = ["PACKAGE_NAME_DIR", "PACKAGE_NAME_DIR.*"]  # package names should match these glob patterns (["*"] by default)
+include = ["split-mwpm", "split-mwpm.*"]  # package names should match these glob patterns (["*"] by default)
 namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project.optional-dependencies]
-dev = ["pip-tools", "pytest", "scalene", "black", "sphinx", "sphinx-rtd-theme", "pytest-black"]
+dev = ["pip-tools", "pytest", "black", "pytest-black"]
