@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+requires-python = ">=3.10"
+name = "PACKAGE_NAME"
+description = "DESCRIPTION" 
+version = "0.1.0"
+authors = [
+    { name = "Marc Serra Peralta", email = "marcserraperalta@gmail.com" }
+]
+maintainers = [
+    { name = "Marc Serra Peralta", email = "marcserraperalta@gmail.com" }
+]
+license = {file = "LICENSE"}
+readme = "README.md"
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "pyyaml",
+]
+keywords = ["SOME", "KEYWORDS"]
+
+[tool.setuptools.packages.find]
+include = ["PACKAGE_NAME_DIR", "PACKAGE_NAME_DIR.*"]  # package names should match these glob patterns (["*"] by default)
+namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
+
+[project.optional-dependencies]
+dev = ["pip-tools", "pytest", "scalene", "black", "sphinx", "sphinx-rtd-theme", "pytest-black"]
