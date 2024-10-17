@@ -18,11 +18,13 @@ readme = "README.md"
 dependencies = [
     "numpy",
     "stim",
+    "pymatching",
+    "qec-util",
 ]
 keywords = ["MWPM", "QEC", "quantum error correction", "logical-gates", "decoder"]
 
 [tool.setuptools.packages.find]
-include = ["split-mwpm", "split-mwpm.*"]  # package names should match these glob patterns (["*"] by default)
+include = ["split_mwpm", "split_mwpm.*"]  # package names should match these glob patterns (["*"] by default)
 namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project.optional-dependencies]
