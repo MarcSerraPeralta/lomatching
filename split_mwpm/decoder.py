@@ -63,7 +63,13 @@ class SplitMatching:
         self.num_logs = dem.num_observables
         self.num_dets = dem.num_detectors
 
+        if set(self.x_dets).intersection(self.z_dets) != set():
+            raise ValueError(
+                "'dem_x' and 'dem_z' have some detector(s) present in both of them."
+            )
+
         # remove stim.DemInstruction that leads to a logical flip but triggers no detectors
+        # DO THIS AT THE END????????????????????????????????????????????????????????????????????????
         new_dem_z = stim.DetectorErrorModel()
         for dem_instr in self.dem_z:
             if (dem_instr.type == "error") and (len(get_detectors(dem_instr)) == 0):
@@ -131,8 +137,8 @@ class SplitMatching:
             for k in ks:
                 dem_instr = self.dem[k]
                 prob = dem_instr.args_copy()[0]
-                dets = get_detectors(dem_instr)
-                data[k] = (prob, dets)
+                num_dets = len(get_detectors(dem_instr))
+                data[k] = (prob, num_dets)
 
             ks = sorted(ks, key=lambda x: data[x][1])
             ks = sorted(ks, key=lambda x: data[x][0], reverse=True)
@@ -159,9 +165,63 @@ class SplitMatching:
             logs = np.array(list(logs), dtype=int)
             self.zedges_to_logs[dets_z] = logs
 
+        # modify 'dem_x' to remove the hyperedges between Z- and X-type detectors.
+        remove_kx = []
+        for kz, k in gz_to_g.items():
+            if k is None:
+                continue
+            if set(get_detectors(self.dem[k])).intersection(x_dets) == set():
+                continue
+
+            # compute the respective dem_instr in 'dem_x'
+            dets = get_detectors(self.dem[k])
+            dets_z = get_detectors(self.dem_z[kz])
+            logs = get_logicals(self.dem[k])
+            logs_z = get_logicals(self.dem_z[kz])
+
+            dets_x = set(dets) - set(dets_z)
+            logs_x = set(logs).symmetric_difference(logs_z)
+            dets_x = list(map(stim.target_relative_detector_id, dets_x))
+            logs_x = list(
+                map(stim.target_logical_observable_id, set(logs) - set(logs_z))
+            )
+            dem_instr = stim.DemInstruction("error", args=[1], targets=dets_x + logs_x)
+
+            # find kx s.t. dem_x[kx] = dem_instr
+            kx = None
+            for kx_, instr_x in enumerate(self.dem_x):
+                if _sorted_dem_instr_without_p(instr_x) == _sorted_dem_instr_without_p(
+                    dem_instr
+                ):
+                    kx = kx_
+                    break
+            if kx is None:
+                raise ValueError(f"{dem_instr} is not in 'dem_x'.")
+
+            # in the case that the instruction is already present in 'dem',
+            # it should not be deleted from 'dem_x' because there exists an
+            # error mechanism that has the same pattern.
+            if _is_instr_without_p_in_dem(self.dem_x[kx], self.dem):
+                continue
+
+            remove_kx.append(kx)
+
+        self.modified_dem_x = stim.DetectorErrorModel()
+        for kx, dem_instr in enumerate(self.dem_x):
+            if kx in remove_kx:
+                for d in get_detectors(dem_instr):
+                    d_target = stim.target_relative_detector_id(d)
+                    new_instr = stim.DemInstruction(
+                        "detector", args=[], targets=[d_target]
+                    )
+                    self.modified_dem_x.append(new_instr)
+                continue
+
+            self.modified_dem_x.append(dem_instr)
+
         # prepare MWPM decoders
-        self.mwpm_z = Matching(dem_z)
-        self.mwpm_x = Matching(dem_x)
+        self.mwpm_z = Matching(self.dem_z)
+        self.mwpm_x = Matching(self.modified_dem_x)
 
         return
 
@@ -201,3 +261,18 @@ def _sorted_dem_instr_without_p(dem_instr: stim.DemInstruction) -> stim.DemInstr
     """
     output = sorted_dem_instr(dem_instr)
     return stim.DemInstruction("error", args=[1], targets=output.targets_copy())
+
+
+def _is_instr_without_p_in_dem(
+    dem_instr: stim.DemInstruction, dem: stim.DetectorErrorModel
+) -> bool:
+    dem_instr = _sorted_dem_instr_without_p(dem_instr)
+
+    for other_instr in dem.flattened():
+        if other_instr.type != "error":
+            continue
+
+        if dem_instr == _sorted_dem_instr_without_p(other_instr):
+            return True
+
+    return False
