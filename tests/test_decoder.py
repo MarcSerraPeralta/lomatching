@@ -7,1165 +7,1747 @@ from split_mwpm import SplitMatching
 def test_SplitMatching():
     dem = stim.DetectorErrorModel(
         """
-        error(0.001) D0 D3
-    error(0.001998) D0 D29
-    error(0.001) D0 L0
-    error(0.001) D1 D3
-    error(0.001) D1 D4
-    error(0.001998) D1 D30
-    error(0.001) D2
-    error(0.001) D2 D4
-    error(0.001998) D2 D31
-    error(0.001) D3 D5
-    error(0.001) D3 D6
-    error(0.001998) D3 D32
-    error(0.001) D4 D6
-    error(0.001) D4 D7
-    error(0.001998) D4 D33
-    error(0.001) D5 D8
-    error(0.001998) D5 D34
-    error(0.001998) D5 L0
-    error(0.001) D6 D8
-    error(0.001) D6 D9
-    error(0.001998) D6 D35
-    error(0.001998) D7
-    error(0.001) D7 D9
-    error(0.001998) D7 D36
-    error(0.001) D8 D10
-    error(0.001) D8 D11
-    error(0.001998) D8 D37
-    error(0.001) D9 D11
-    error(0.001) D9 D12
-    error(0.001998) D9 D38
-    error(0.001) D10 D13
-    error(0.001998) D10 D39
-    error(0.001998) D10 L0
-    error(0.001) D11 D13
-    error(0.001) D11 D14
-    error(0.001998) D11 D40
-    error(0.001998) D12
-    error(0.001) D12 D14
-    error(0.001998) D12 D41
-    error(0.001998) D13 D42
-    error(0.001998) D14 D43
-    error(0.001998) D29 D32
-    error(0.001998) D29 D58
-    error(0.001998) D29 L0
-    error(0.001998) D30 D32
-    error(0.001) D30 D32 D44 D47
-    error(0.001998) D30 D33
-    error(0.001) D30 D33 D47 D51
-    error(0.001998) D30 D47 D76
-    error(0.001998) D30 D59
-    error(0.001998) D31
-    error(0.001998) D31 D33
-    error(0.001) D31 D33 D51 D54
-    error(0.001) D31 D54
-    error(0.001998) D31 D54 D83
-    error(0.001998) D31 D60
-    error(0.001998) D32 D34
-    error(0.001998) D32 D35
-    error(0.001) D32 D35 D44 D48
-    error(0.001998) D32 D44 D73
-    error(0.001998) D32 D44 L0
-    error(0.001998) D32 D61
-    error(0.001998) D33 D35
-    error(0.001) D33 D35 D48 D51
-    error(0.001998) D33 D36
-    error(0.001) D33 D36 D51 D55
-    error(0.001998) D33 D51 D80
-    error(0.001998) D33 D62
-    error(0.001) D34 D35 D45 D48
-    error(0.001998) D34 D37
-    error(0.001) D34 D37 D45 D49
-    error(0.001998) D34 D45 D74
-    error(0.001998) D34 D45 L0
-    error(0.001998) D34 D63
-    error(0.00398802) D34 L0
-    error(0.001998) D35 D37
-    error(0.001998) D35 D38
-    error(0.001) D35 D38 D48 D52
-    error(0.001998) D35 D48 D77
-    error(0.001998) D35 D64
-    error(0.00398802) D36
-    error(0.001998) D36 D38
-    error(0.001) D36 D38 D52 D55
-    error(0.001998) D36 D55
-    error(0.001998) D36 D55 D84
-    error(0.001998) D36 D65
-    error(0.001) D37 D38 D49 D52
-    error(0.001998) D37 D39
-    error(0.001) D37 D39 D46 D49
-    error(0.001998) D37 D40
-    error(0.001) D37 D40 D49 D53
-    error(0.001998) D37 D49 D78
-    error(0.001998) D37 D66
-    error(0.001998) D38 D40
-    error(0.001998) D38 D41
-    error(0.001) D38 D41 D52 D56
-    error(0.001998) D38 D52 D81
-    error(0.001998) D38 D67
-    error(0.001998) D39 D42
-    error(0.001) D39 D42 D46 D50
-    error(0.001998) D39 D46 D75
-    error(0.001998) D39 D46 L0
-    error(0.001998) D39 D68
-    error(0.00398802) D39 L0
-    error(0.001) D40 D41 D53 D56
-    error(0.001998) D40 D42
-    error(0.001) D40 D42 D50 D53
-    error(0.001998) D40 D43
-    error(0.001) D40 D43 D53 D57
-    error(0.001998) D40 D53 D82
-    error(0.001998) D40 D69
-    error(0.00398802) D41
-    error(0.001998) D41 D43
-    error(0.001998) D41 D56
-    error(0.001998) D41 D56 D85
-    error(0.001998) D41 D70
-    error(0.001998) D42 D50 D79
-    error(0.001998) D42 D71
-    error(0.001) D43 D57
-    error(0.001998) D43 D57 D86
-    error(0.001998) D43 D72
-    error(0.00398802) D44
-    error(0.001) D44 D47
-    error(0.001) D44 D48
-    error(0.00398802) D45
-    error(0.001) D45 D48
-    error(0.001) D45 D49
-    error(0.00398802) D46
-    error(0.001) D46 D49
-    error(0.001) D46 D50
-    error(0.001998) D47
-    error(0.001) D47 D51
-    error(0.001998) D48
-    error(0.001) D48 D51
-    error(0.001) D48 D52
-    error(0.001998) D49
-    error(0.001) D49 D52
-    error(0.001) D49 D53
-    error(0.001998) D50
-    error(0.001) D50 D53
-    error(0.001998) D51
-    error(0.001) D51 D54
-    error(0.001) D51 D55
-    error(0.001998) D52
-    error(0.001) D52 D55
-    error(0.001) D52 D56
-    error(0.001998) D53
-    error(0.001) D53 D56
-    error(0.001) D53 D57
-    error(0.002994) D54
-    error(0.00398802) D55
-    error(0.00398802) D56
-    error(0.002994) D57
-    error(0.001) D58 D61
-    error(0.001998) D58 D87
-    error(0.001) D58 L0
-    error(0.001) D59 D61
-    error(0.001) D59 D62
-    error(0.001998) D59 D88
-    error(0.001) D60
-    error(0.001) D60 D62
-    error(0.001998) D60 D89
-    error(0.001) D61 D63
-    error(0.001) D61 D64
-    error(0.001998) D61 D90
-    error(0.001) D62 D64
-    error(0.001) D62 D65
-    error(0.001998) D62 D91
-    error(0.001) D63 D66
-    error(0.001998) D63 D92
-    error(0.001998) D63 L0
-    error(0.001) D64 D66
-    error(0.001) D64 D67
-    error(0.001998) D64 D93
-    error(0.001998) D65
-    error(0.001) D65 D67
-    error(0.001998) D65 D94
-    error(0.001) D66 D68
-    error(0.001) D66 D69
-    error(0.001998) D66 D95
-    error(0.001) D67 D69
-    error(0.001) D67 D70
-    error(0.001998) D67 D96
-    error(0.001) D68 D71
-    error(0.001998) D68 D97
-    error(0.001998) D68 L0
-    error(0.001) D69 D71
-    error(0.001) D69 D72
-    error(0.001998) D69 D98
-    error(0.001998) D70
-    error(0.001) D70 D72
-    error(0.001998) D70 D99
-    error(0.001998) D71 D100
-    error(0.001998) D72 D101
-    error(0.001) D73 D76
-    error(0.001) D73 D77
-    error(0.001998) D73 D102
-    error(0.001998) D73 L0
-    error(0.001) D74 D77
-    error(0.001) D74 D78
-    error(0.001998) D74 D103
-    error(0.001998) D74 L0
-    error(0.001) D75 D78
-    error(0.001) D75 D79
-    error(0.001998) D75 D104
-    error(0.001998) D75 L0
-    error(0.001) D76 D80
-    error(0.001998) D76 D105
-    error(0.001) D77 D80
-    error(0.001) D77 D81
-    error(0.001998) D77 D106
-    error(0.001) D78 D81
-    error(0.001) D78 D82
-    error(0.001998) D78 D107
-    error(0.001) D79 D82
-    error(0.001998) D79 D108
-    error(0.001) D80 D83
-    error(0.001) D80 D84
-    error(0.001998) D80 D109
-    error(0.001) D81 D84
-    error(0.001) D81 D85
-    error(0.001998) D81 D110
-    error(0.001) D82 D85
-    error(0.001) D82 D86
-    error(0.001998) D82 D111
-    error(0.001) D83
-    error(0.001998) D83 D112
-    error(0.001998) D84
-    error(0.001998) D84 D113
-    error(0.001998) D85
-    error(0.001998) D85 D114
-    error(0.001) D86
-    error(0.001998) D86 D115
-    error(0.001998) D87 D90
-    error(0.001998) D87 D116
-    error(0.001998) D87 L0
-    error(0.001998) D88 D90
-    error(0.001) D88 D90 D102 D105
-    error(0.001998) D88 D91
-    error(0.001) D88 D91 D105 D109
-    error(0.001998) D88 D105 D134
-    error(0.001998) D88 D117
-    error(0.001998) D89
-    error(0.001998) D89 D91
-    error(0.001) D89 D91 D109 D112
-    error(0.001) D89 D112
-    error(0.001998) D89 D112 D141
-    error(0.001998) D89 D118
-    error(0.001998) D90 D92
-    error(0.001998) D90 D93
-    error(0.001) D90 D93 D102 D106
-    error(0.001998) D90 D102
-    error(0.001998) D90 D102 D131
-    error(0.001998) D90 D119
-    error(0.001998) D91 D93
-    error(0.001) D91 D93 D106 D109
-    error(0.001998) D91 D94
-    error(0.001) D91 D94 D109 D113
-    error(0.001998) D91 D109 D138
-    error(0.001998) D91 D120
-    error(0.001) D92 D93 D103 D106
-    error(0.001998) D92 D95
-    error(0.001) D92 D95 D103 D107
-    error(0.001998) D92 D103
-    error(0.001998) D92 D103 D132
-    error(0.001998) D92 D121
-    error(0.00398802) D92 L0
-    error(0.001998) D93 D95
-    error(0.001998) D93 D96
-    error(0.001) D93 D96 D106 D110
-    error(0.001998) D93 D106 D135
-    error(0.001998) D93 D122
-    error(0.00398802) D94
-    error(0.001998) D94 D96
-    error(0.001) D94 D96 D110 D113
-    error(0.001998) D94 D113
-    error(0.001998) D94 D113 D142
-    error(0.001998) D94 D123
-    error(0.001) D95 D96 D107 D110
-    error(0.001998) D95 D97
-    error(0.001) D95 D97 D104 D107
-    error(0.001998) D95 D98
-    error(0.001) D95 D98 D107 D111
-    error(0.001998) D95 D107 D136
-    error(0.001998) D95 D124
-    error(0.001998) D96 D98
-    error(0.001998) D96 D99
-    error(0.001) D96 D99 D110 D114
-    error(0.001998) D96 D110 D139
-    error(0.001998) D96 D125
-    error(0.001998) D97 D100
-    error(0.001) D97 D100 D104 D108
-    error(0.001998) D97 D104
-    error(0.001998) D97 D104 D133
-    error(0.001998) D97 D126
-    error(0.00398802) D97 L0
-    error(0.001) D98 D99 D111 D114
-    error(0.001998) D98 D100
-    error(0.001) D98 D100 D108 D111
-    error(0.001998) D98 D101
-    error(0.001) D98 D101 D111 D115
-    error(0.001998) D98 D111 D140
-    error(0.001998) D98 D127
-    error(0.00398802) D99
-    error(0.001998) D99 D101
-    error(0.001998) D99 D114
-    error(0.001998) D99 D114 D143
-    error(0.001998) D99 D128
-    error(0.001998) D100 D108 D137
-    error(0.001998) D100 D129
-    error(0.001) D101 D115
-    error(0.001998) D101 D115 D144
-    error(0.001998) D101 D130
-    error(0.001) D102 D105
-    error(0.001) D102 D106
-    error(0.001998) D102 L0
-    error(0.001) D103 D106
-    error(0.001) D103 D107
-    error(0.001998) D103 L0
-    error(0.001) D104 D107
-    error(0.001) D104 D108
-    error(0.001998) D104 L0
-    error(0.001) D105 D109
-    error(0.001) D106 D109
-    error(0.001) D106 D110
-    error(0.001) D107 D110
-    error(0.001) D107 D111
-    error(0.001) D108 D111
-    error(0.001) D109 D112
-    error(0.001) D109 D113
-    error(0.001) D110 D113
-    error(0.001) D110 D114
-    error(0.001) D111 D114
-    error(0.001) D111 D115
-    error(0.001) D112
-    error(0.001998) D113
-    error(0.001998) D114
-    error(0.001) D115
-    error(0.001) D116 D119
-    error(0.001998) D116 D145
-    error(0.001) D116 L0
-    error(0.001) D117 D119
-    error(0.001) D117 D120
-    error(0.001998) D117 D146
-    error(0.001) D118
-    error(0.001) D118 D120
-    error(0.001998) D118 D147
-    error(0.001) D119 D121
-    error(0.001) D119 D122
-    error(0.001998) D119 D148
-    error(0.001) D120 D122
-    error(0.001) D120 D123
-    error(0.001998) D120 D149
-    error(0.001) D121 D124
-    error(0.001998) D121 D150
-    error(0.001998) D121 L0
-    error(0.001) D122 D124
-    error(0.001) D122 D125
-    error(0.001998) D122 D151
-    error(0.001998) D123
-    error(0.001) D123 D125
-    error(0.001998) D123 D152
-    error(0.001) D124 D126
-    error(0.001) D124 D127
-    error(0.001998) D124 D153
-    error(0.001) D125 D127
-    error(0.001) D125 D128
-    error(0.001998) D125 D154
-    error(0.001) D126 D129
-    error(0.001998) D126 D155
-    error(0.001998) D126 L0
-    error(0.001) D127 D129
-    error(0.001) D127 D130
-    error(0.001998) D127 D156
-    error(0.001998) D128
-    error(0.001) D128 D130
-    error(0.001998) D128 D157
-    error(0.001998) D129 D158
-    error(0.001998) D130 D159
-    error(0.00398802) D131
-    error(0.001) D131 D134
-    error(0.001) D131 D135
-    error(0.00398802) D132
-    error(0.001) D132 D135
-    error(0.001) D132 D136
-    error(0.00398802) D133
-    error(0.001) D133 D136
-    error(0.001) D133 D137
-    error(0.001998) D134
-    error(0.001) D134 D138
-    error(0.001998) D135
-    error(0.001) D135 D138
-    error(0.001) D135 D139
-    error(0.001998) D136
-    error(0.001) D136 D139
-    error(0.001) D136 D140
-    error(0.001998) D137
-    error(0.001) D137 D140
-    error(0.001998) D138
-    error(0.001) D138 D141
-    error(0.001) D138 D142
-    error(0.001998) D139
-    error(0.001) D139 D142
-    error(0.001) D139 D143
-    error(0.001998) D140
-    error(0.001) D140 D143
-    error(0.001) D140 D144
-    error(0.002994) D141
-    error(0.00398802) D142
-    error(0.00398802) D143
-    error(0.002994) D144
-    error(0.002994) D145 D148
-    error(0.002994) D145 L0
-    error(0.002994) D146 D148
-    error(0.002994) D146 D149
-    error(0.002994) D147
-    error(0.002994) D147 D149
-    error(0.002994) D148 D150
-    error(0.002994) D148 D151
-    error(0.002994) D149 D151
-    error(0.002994) D149 D152
-    error(0.002994) D150 D153
-    error(0.00597008) D150 L0
-    error(0.002994) D151 D153
-    error(0.002994) D151 D154
-    error(0.00597008) D152
-    error(0.002994) D152 D154
-    error(0.002994) D153 D155
-    error(0.002994) D153 D156
-    error(0.002994) D154 D156
-    error(0.002994) D154 D157
-    error(0.002994) D155 D158
-    error(0.00597008) D155 L0
-    error(0.002994) D156 D158
-    error(0.002994) D156 D159
-    error(0.00597008) D157
-    error(0.002994) D157 D159
-    detector D15
-    detector D16
-    detector D17
-    detector D18
-    detector D19
-    detector D20
-    detector D21
-    detector D22
-    detector D23
-    detector D24
-    detector D25
-    detector D26
-    detector D27
-    detector D28
+    error(0.113335) D0 D2
+    error(0.0703718) D0 D2 D6
+    error(0.0300118) D0 D6 D11
+    error(0.0990136) D0 D6 L0
+    error(0.230378) D0 D11
+    error(0.139112) D0 L0
+    error(0.113335) D1
+    error(0.139112) D1 D2
+    error(0.0990136) D1 D2 D7
+    error(0.0703718) D1 D7
+    error(0.0300118) D1 D7 D12
+    error(0.230378) D1 D12
+    error(0.144023) D2 D3
+    error(0.00341381) D2 D3 D6
+    error(0.0703718) D2 D3 D6 D9
+    error(0.0267809) D2 D3 D6 D17
+    error(0.00341381) D2 D3 D7 D9
+    error(0.00341381) D2 D3 D7 D17
+    error(0.0267809) D2 D3 D9 D17
+    error(0.00341381) D2 D3 D17
+    error(0.113335) D2 D4
+    error(0.0703718) D2 D4 D7 D9
+    error(0.0267809) D2 D6 D11
+    error(0.00341381) D2 D6 D11 D17
+    error(0.0267809) D2 D7 D9 D13
+    error(0.0101717) D2 D7 D12
+    error(0.00341381) D2 D7 D12 D17
+    error(0.00341381) D2 D7 D13
+    error(0.00680431) D2 D7 D13 D17
+    error(0.00341381) D2 D9 D13 D17
+    error(0.0643393) D2 D11
+    error(0.0428269) D2 D11 D17
+    error(0.0101717) D2 D12
+    error(0.00341381) D2 D12 D17
+    error(0.183981) D2 D13
+    error(0.0267809) D2 D13 D17
+    error(0.113335) D3 D5
+    error(0.0703718) D3 D5 D9
+    error(0.0990136) D3 D6 D8 L0
+    error(0.00341381) D3 D6 D11
+    error(0.00680431) D3 D6 D11 D17
+    error(0.00341381) D3 D6 D11 D19
+    error(0.00341381) D3 D6 D17 L0
+    error(0.0101717) D3 D6 D19 L0
+    error(0.00341381) D3 D7 D9 D13
+    error(0.00341381) D3 D7 D13 D17
+    error(0.0300118) D3 D8 D19 L0
+    error(0.0703718) D3 D8 L0
+    error(0.00680431) D3 D9 D13 D17
+    error(0.00341381) D3 D9 D13 D19
+    error(0.0267809) D3 D9 D14
+    error(0.00341381) D3 D9 D14 D17
+    error(0.00680431) D3 D9 D14 D19
+    error(0.00341381) D3 D9 D19 L0
+    error(0.00341381) D3 D9 L0
+    error(0.00680431) D3 D11
+    error(0.00341381) D3 D11 D17
+    error(0.00341381) D3 D11 D17 D19
+    error(0.00680431) D3 D13
+    error(0.00341381) D3 D13 D17 D19
+    error(0.183981) D3 D14
+    error(0.0267809) D3 D14 D17 D19
+    error(0.00341381) D3 D14 D19
+    error(0.0267809) D3 D17 D19 L0
+    error(0.0267809) D3 D19 L0
+    error(0.255155) D3 L0
+    error(0.234047) D4
+    error(0.144023) D4 D5
+    error(0.00341381) D4 D5 D7 D9
+    error(0.00341381) D4 D5 D7 D20
+    error(0.0703718) D4 D5 D9
+    error(0.0267809) D4 D5 D9 D20
+    error(0.00341381) D4 D5 D10
+    error(0.00341381) D4 D5 D10 D20
+    error(0.0267809) D4 D5 D20
+    error(0.00341381) D4 D7
+    error(0.0267809) D4 D7 D9 D13
+    error(0.0703718) D4 D7 D10
+    error(0.00341381) D4 D7 D12
+    error(0.00680431) D4 D7 D12 D18
+    error(0.00341381) D4 D7 D12 D20
+    error(0.00341381) D4 D7 D13 D18
+    error(0.00680431) D4 D7 D13 D20
+    error(0.0267809) D4 D7 D18
+    error(0.00341381) D4 D9 D13 D20
+    error(0.0703718) D4 D10
+    error(0.0267809) D4 D10 D15
+    error(0.00341381) D4 D10 D15 D18
+    error(0.00680431) D4 D10 D15 D20
+    error(0.0428269) D4 D10 D18
+    error(0.00341381) D4 D10 D20
+    error(0.00680431) D4 D12
+    error(0.00341381) D4 D12 D18
+    error(0.00341381) D4 D12 D18 D20
+    error(0.0521273) D4 D13
+    error(0.0267809) D4 D13 D18 D20
+    error(0.183981) D4 D15
+    error(0.0267809) D4 D15 D18 D20
+    error(0.00341381) D4 D15 D20
+    error(0.00341381) D4 D18
+    error(0.00341381) D4 D18 D20
+    error(0.00341381) D5 D7 D9 D13
+    error(0.00341381) D5 D7 D13 D20
+    error(0.00341381) D5 D9 D13
+    error(0.00680431) D5 D9 D13 D20
+    error(0.0428269) D5 D9 D14
+    error(0.00341381) D5 D9 D14 D20
+    error(0.00341381) D5 D10 D15
+    error(0.00341381) D5 D10 D15 D20
+    error(0.00680431) D5 D13
+    error(0.00341381) D5 D13 D20
+    error(0.0643393) D5 D14
+    error(0.0267809) D5 D14 D20
+    error(0.0101717) D5 D15
+    error(0.0101717) D5 D15 D20
+    error(0.230378) D5 D16
+    error(0.0300118) D5 D16 D20
+    error(0.5) D6
+    error(0.0990136) D6 D8
+    error(0.0703718) D6 D9
+    error(0.0267809) D6 D11 D17 L0
+    error(0.00341381) D6 D11 D19 L0
+    error(0.0459483) D6 D11 L0
+    error(0.183981) D6 D17
+    error(0.0101717) D6 D19
+    error(0.5) D7
+    error(0.104471) D7 D9
+    error(0.5) D7 D10
+    error(0.0267809) D7 D12
+    error(0.0267809) D7 D12 D13
+    error(0.00341381) D7 D12 D13 D17
+    error(0.0267809) D7 D12 D13 D18
+    error(0.00341381) D7 D12 D13 D20
+    error(0.00341381) D7 D12 D18
+    error(0.00680431) D7 D17
+    error(0.183981) D7 D18
+    error(0.00680431) D7 D20
+    error(0.5) D8
+    error(0.230378) D8 D19
+    error(0.5) D9
+    error(0.00341381) D9 D13 D14
+    error(0.0267809) D9 D13 D14 D17
+    error(0.00341381) D9 D13 D14 D19
+    error(0.0267809) D9 D13 D14 D20
+    error(0.00341381) D9 D14 D19 L0
+    error(0.00341381) D9 D14 L0
+    error(0.0521273) D9 D17
+    error(0.00680431) D9 D19
+    error(0.183981) D9 D20
+    error(0.120491) D10
+    error(0.0459483) D10 D15
+    error(0.0267809) D10 D15 D18
+    error(0.00341381) D10 D15 D20
+    error(0.0300118) D10 D15 D21
+    error(0.0643393) D10 D18
+    error(0.00680431) D10 D20
+    error(0.230378) D10 D21
+    error(0.0961596) D11 D13
+    error(0.123082) D11 D13 D17
+    error(0.0300118) D11 D13 D17 D22 L0
+    error(0.00341381) D11 D17 D19 L0
+    error(0.0961596) D11 D17 L0
+    error(0.230378) D11 D22
+    error(0.167053) D11 L0
+    error(0.14821) D12
+    error(0.150612) D12 D13
+    error(0.00341381) D12 D13 D14 D17 D18 D19 L0
+    error(0.0733051) D12 D13 D14 D17 D19 L0
+    error(0.0733051) D12 D13 D14 D18 L0
+    error(0.00341381) D12 D13 D14 L0
+    error(0.00341381) D12 D13 D17
+    error(0.00341381) D12 D13 D17 D18 D19
+    error(0.0733051) D12 D13 D17 D19
+    error(0.0583288) D12 D13 D18
+    error(0.00341381) D12 D13 D18 D20
+    error(0.00341381) D12 D14 D18 D19 L0
+    error(0.0300118) D12 D14 D18 D23 L0
+    error(0.0428269) D12 D14 D18 L0
+    error(0.0300118) D12 D14 D19 D30 L0
+    error(0.0428269) D12 D14 D19 L0
+    error(0.00341381) D12 D14 L0
+    error(0.0990136) D12 D18
+    error(0.00341381) D12 D18 D19
+    error(0.0428269) D12 D19
+    error(0.230378) D12 D19 D30
+    error(0.230378) D12 D23
+    error(0.155367) D13 D14
+    error(0.0267809) D13 D14 D15 D18 D20 D24
+    error(0.0267809) D13 D14 D15 D20 D28
+    error(0.00341381) D13 D14 D17 D18
+    error(0.00341381) D13 D14 D17 D19
+    error(0.0583288) D13 D14 D17 D20
+    error(0.00680431) D13 D14 D17 D22 D28
+    error(0.00341381) D13 D14 D17 D22 D30
+    error(0.00341381) D13 D14 D17 D22 L0
+    error(0.00341381) D13 D14 D17 D28 L0
+    error(0.0101717) D13 D14 D17 D30 L0
+    error(0.0428269) D13 D14 D18 D20
+    error(0.00341381) D13 D14 D18 D23 D28
+    error(0.0101717) D13 D14 D18 D23 L0
+    error(0.00680431) D13 D14 D18 D24 D28
+    error(0.00341381) D13 D14 D18 D24 L0
+    error(0.00341381) D13 D14 D20
+    error(0.00341381) D13 D14 D28 L0
+    error(0.0933834) D13 D15
+    error(0.00341381) D13 D15 D17 D18
+    error(0.0428269) D13 D15 D17 D20
+    error(0.0613444) D13 D15 D18 D20
+    error(0.00341381) D13 D15 D20 D24 D28
+    error(0.0459483) D13 D17 D22
+    error(0.0267809) D13 D17 D22 D28 L0
+    error(0.00341381) D13 D17 D22 D30 L0
+    error(0.183981) D13 D17 D28
+    error(0.0101717) D13 D17 D30
+    error(0.167053) D13 D17 L0
+    error(0.00341381) D13 D18 D28
+    error(0.0643393) D13 D22
+    error(0.0428269) D13 D22 D28 L0
+    error(0.0101717) D13 D23
+    error(0.00341381) D13 D23 D28 L0
+    error(0.183981) D13 D24
+    error(0.0267809) D13 D24 D28 L0
+    error(0.00680431) D13 L0
+    error(0.00341381) D14 D15
+    error(0.00341381) D14 D15 D16
+    error(0.00341381) D14 D15 D16 D18 D20 D21
+    error(0.00341381) D14 D15 D16 D18 D20 D24
+    error(0.0428269) D14 D15 D16 D18 D21
+    error(0.00341381) D14 D15 D16 D18 D31
+    error(0.0428269) D14 D15 D16 D20
+    error(0.00341381) D14 D15 D17 D18
+    error(0.0428269) D14 D15 D17 D20
+    error(0.0791118) D14 D15 D18 D20
+    error(0.00680431) D14 D15 D18 D23 D29
+    error(0.00341381) D14 D15 D18 D23 D31
+    error(0.00341381) D14 D15 D18 D23 L0
+    error(0.00341381) D14 D15 D18 D24 D29
+    error(0.00680431) D14 D15 D18 D24 D31
+    error(0.0267809) D14 D15 D18 D29
+    error(0.00341381) D14 D15 D18 L0
+    error(0.00680431) D14 D15 D20 D24 D28
+    error(0.00341381) D14 D15 D20 D24 D30
+    error(0.0267809) D14 D15 D20 D25
+    error(0.00341381) D14 D15 D20 D25 D28
+    error(0.00680431) D14 D15 D20 D25 D30
+    error(0.00341381) D14 D15 D20 D30 L0
+    error(0.00341381) D14 D15 D20 L0
+    error(0.0933834) D14 D16
+    error(0.00341381) D14 D16 D18 D20
+    error(0.00341381) D14 D16 D18 D20 D21
+    error(0.0428269) D14 D16 D18 D21
+    error(0.00341381) D14 D16 D18 D24 D31
+    error(0.0583288) D14 D16 D20
+    error(0.00341381) D14 D17 D18 D19 L0
+    error(0.0583288) D14 D17 D19 L0
+    error(0.0267809) D14 D17 D28
+    error(0.00341381) D14 D17 L0
+    error(0.00341381) D14 D18 D19 L0
+    error(0.0267809) D14 D18 D20 D24
+    error(0.00341381) D14 D18 D23 D24 D28
+    error(0.0267809) D14 D18 D23 D24 D29
+    error(0.00341381) D14 D18 D23 D24 D31
+    error(0.0267809) D14 D18 D23 D24 L0
+    error(0.00341381) D14 D18 D23 D29
+    error(0.0267809) D14 D18 D23 L0
+    error(0.00680431) D14 D18 D28
+    error(0.183981) D14 D18 D29
+    error(0.00680431) D14 D18 D31
+    error(0.15772) D14 D18 L0
+    error(0.0990136) D14 D19 L0
+    error(0.00680431) D14 D22
+    error(0.00341381) D14 D22 D28 D30
+    error(0.00341381) D14 D22 D28 L0
+    error(0.00680431) D14 D24
+    error(0.00341381) D14 D24 D28 D30
+    error(0.183981) D14 D25
+    error(0.0267809) D14 D25 D28 D30
+    error(0.00341381) D14 D25 D30
+    error(0.0267809) D14 D28 D30 L0
+    error(0.0267809) D14 D30 L0
+    error(0.254178) D14 L0
+    error(0.265745) D15
+    error(0.150612) D15 D16
+    error(0.0877736) D15 D16 D20
+    error(0.00341381) D15 D16 D20 D21
+    error(0.00341381) D15 D16 D20 D24
+    error(0.00680431) D15 D16 D20 D24 D31
+    error(0.0428269) D15 D16 D20 D25
+    error(0.00341381) D15 D16 D20 D25 D31
+    error(0.0428269) D15 D16 D21
+    error(0.0267809) D15 D16 D21 D26
+    error(0.00341381) D15 D16 D21 D26 D29
+    error(0.00680431) D15 D16 D21 D26 D31
+    error(0.0428269) D15 D16 D21 D29
+    error(0.00341381) D15 D16 D21 D31
+    error(0.0267809) D15 D16 D31
+    error(0.00341381) D15 D18 D20
+    error(0.00341381) D15 D18 D20 D21
+    error(0.00341381) D15 D18 D20 D24
+    error(0.0583288) D15 D18 D21
+    error(0.128212) D15 D20
+    error(0.00341381) D15 D20 D21
+    error(0.00341381) D15 D20 D24 D25
+    error(0.0267809) D15 D20 D24 D25 D28
+    error(0.00341381) D15 D20 D24 D25 D30
+    error(0.0267809) D15 D20 D24 D25 D31
+    error(0.00341381) D15 D20 D25 D30 L0
+    error(0.00341381) D15 D20 D25 L0
+    error(0.0521273) D15 D20 D28
+    error(0.00680431) D15 D20 D30
+    error(0.183981) D15 D20 D31
+    error(0.0905881) D15 D21
+    error(0.00341381) D15 D21 D31
+    error(0.00680431) D15 D23
+    error(0.00341381) D15 D23 D29 D31
+    error(0.00341381) D15 D23 D29 L0
+    error(0.0521273) D15 D24
+    error(0.0267809) D15 D24 D29 D31
+    error(0.183981) D15 D26
+    error(0.0267809) D15 D26 D29 D31
+    error(0.00341381) D15 D26 D31
+    error(0.00341381) D15 D29 D31
+    error(0.00341381) D15 D29 L0
+    error(0.00341381) D16
+    error(0.0428269) D16 D20
+    error(0.00341381) D16 D20 D21
+    error(0.0267809) D16 D20 D31
+    error(0.0961596) D16 D21
+    error(0.0459483) D16 D21 D26
+    error(0.0267809) D16 D21 D26 D29
+    error(0.00341381) D16 D21 D26 D31
+    error(0.0300118) D16 D21 D26 D32
+    error(0.0643393) D16 D21 D29
+    error(0.00680431) D16 D21 D31
+    error(0.230378) D16 D21 D32
+    error(0.00680431) D16 D24
+    error(0.00341381) D16 D24 D31
+    error(0.0643393) D16 D25
+    error(0.0267809) D16 D25 D31
+    error(0.0101717) D16 D26
+    error(0.0101717) D16 D26 D31
+    error(0.230378) D16 D27
+    error(0.0300118) D16 D27 D31
+    error(0.152998) D17
+    error(0.00341381) D17 D18
+    error(0.00341381) D17 D18 D19
+    error(0.0933834) D17 D19
+    error(0.0583288) D17 D20
+    error(0.00341381) D17 D22 D28
+    error(0.0267809) D17 D22 L0
+    error(0.145792) D18
+    error(0.00341381) D18 D19
+    error(0.0933834) D18 D20
+    error(0.00341381) D18 D20 D21
+    error(0.0583288) D18 D21
+    error(0.00341381) D18 D24 D28
+    error(0.117882) D19
+    error(0.180538) D20
+    error(0.00341381) D20 D21
+    error(0.00341381) D20 D24 D31
+    error(0.0877736) D21
+    error(0.00341381) D21 D26
+    error(0.00341381) D21 D26 D31
+    error(0.0762184) D22 D24
+    error(0.0762184) D22 D24 D28 L0
+    error(0.104471) D22 D28
+    error(0.00341381) D22 D28 D30 L0
+    error(0.0300118) D22 D28 D33 L0
+    error(0.230378) D22 D33
+    error(0.150612) D22 L0
+    error(0.13336) D23
+    error(0.135863) D23 D24
+    error(0.00341381) D23 D24 D28 L0
+    error(0.00341381) D23 D24 D29 D31
+    error(0.104471) D23 D24 D29 L0
+    error(0.0300118) D23 D29 D34 L0
+    error(0.115255) D23 D29 L0
+    error(0.230378) D23 D34
+    error(0.140818) D24 D25
+    error(0.00341381) D24 D25 D28 D30
+    error(0.0762184) D24 D25 D28 D31
+    error(0.0267809) D24 D25 D28 D39
+    error(0.00341381) D24 D25 D28 L0
+    error(0.00341381) D24 D25 D29 D31
+    error(0.00341381) D24 D25 D29 D39
+    error(0.00341381) D24 D25 D31
+    error(0.0267809) D24 D25 D31 D39
+    error(0.00341381) D24 D25 D39 L0
+    error(0.0762184) D24 D26
+    error(0.0762184) D24 D26 D29 D31
+    error(0.00341381) D24 D28 D33 D39
+    error(0.0267809) D24 D28 D33 L0
+    error(0.0267809) D24 D29 D31 D35
+    error(0.00341381) D24 D29 D34 D39
+    error(0.0101717) D24 D29 D34 L0
+    error(0.00680431) D24 D29 D35 D39
+    error(0.00341381) D24 D29 D35 L0
+    error(0.00341381) D24 D31 D35 D39
+    error(0.0643393) D24 D33
+    error(0.0428269) D24 D33 D39 L0
+    error(0.0101717) D24 D34
+    error(0.00341381) D24 D34 D39 L0
+    error(0.183981) D24 D35
+    error(0.0267809) D24 D35 D39 L0
+    error(0.0762184) D25 D27
+    error(0.0762184) D25 D27 D31
+    error(0.104471) D25 D28 D30 L0
+    error(0.00680431) D25 D28 D33 D39
+    error(0.00341381) D25 D28 D33 D41
+    error(0.00341381) D25 D28 D33 L0
+    error(0.00341381) D25 D28 D39 L0
+    error(0.0101717) D25 D28 D41 L0
+    error(0.00341381) D25 D29 D31 D35
+    error(0.00341381) D25 D29 D35 D39
+    error(0.0300118) D25 D30 D41 L0
+    error(0.115255) D25 D30 L0
+    error(0.00680431) D25 D31 D35 D39
+    error(0.00341381) D25 D31 D35 D41
+    error(0.0267809) D25 D31 D36
+    error(0.00341381) D25 D31 D36 D39
+    error(0.00680431) D25 D31 D36 D41
+    error(0.00341381) D25 D31 D41 L0
+    error(0.00341381) D25 D31 L0
+    error(0.00680431) D25 D33
+    error(0.00341381) D25 D33 D39 D41
+    error(0.00341381) D25 D33 D39 L0
+    error(0.00680431) D25 D35
+    error(0.00341381) D25 D35 D39 D41
+    error(0.183981) D25 D36
+    error(0.0267809) D25 D36 D39 D41
+    error(0.00341381) D25 D36 D41
+    error(0.0267809) D25 D39 D41 L0
+    error(0.0267809) D25 D41 L0
+    error(0.232985) D25 L0
+    error(0.24555) D26
+    error(0.135863) D26 D27
+    error(0.00341381) D26 D27 D29 D31
+    error(0.00341381) D26 D27 D29 D42
+    error(0.104471) D26 D27 D31
+    error(0.0267809) D26 D27 D31 D42
+    error(0.00341381) D26 D27 D32
+    error(0.00341381) D26 D27 D32 D42
+    error(0.0267809) D26 D27 D42
+    error(0.00341381) D26 D29 D31
+    error(0.0267809) D26 D29 D31 D35
+    error(0.0762184) D26 D29 D32
+    error(0.00680431) D26 D29 D34 D40
+    error(0.00341381) D26 D29 D34 D42
+    error(0.00341381) D26 D29 D34 L0
+    error(0.00341381) D26 D29 D35 D40
+    error(0.00680431) D26 D29 D35 D42
+    error(0.0267809) D26 D29 D40
+    error(0.00341381) D26 D29 L0
+    error(0.00341381) D26 D31 D35 D42
+    error(0.104471) D26 D32
+    error(0.0267809) D26 D32 D37
+    error(0.00341381) D26 D32 D37 D40
+    error(0.00680431) D26 D32 D37 D42
+    error(0.0428269) D26 D32 D40
+    error(0.00341381) D26 D32 D42
+    error(0.00680431) D26 D34
+    error(0.00341381) D26 D34 D40 D42
+    error(0.00341381) D26 D34 D40 L0
+    error(0.0521273) D26 D35
+    error(0.0267809) D26 D35 D40 D42
+    error(0.183981) D26 D37
+    error(0.0267809) D26 D37 D40 D42
+    error(0.00341381) D26 D37 D42
+    error(0.00341381) D26 D40 D42
+    error(0.00341381) D26 D40 L0
+    error(0.00341381) D27 D29 D31 D35
+    error(0.00341381) D27 D29 D35 D42
+    error(0.00341381) D27 D31 D35
+    error(0.00680431) D27 D31 D35 D42
+    error(0.0428269) D27 D31 D36
+    error(0.00341381) D27 D31 D36 D42
+    error(0.00341381) D27 D32 D37
+    error(0.00341381) D27 D32 D37 D42
+    error(0.00680431) D27 D35
+    error(0.00341381) D27 D35 D42
+    error(0.0643393) D27 D36
+    error(0.0267809) D27 D36 D42
+    error(0.0101717) D27 D37
+    error(0.0101717) D27 D37 D42
+    error(0.230378) D27 D38
+    error(0.0300118) D27 D38 D42
+    error(0.135863) D28 D30
+    error(0.0762184) D28 D31
+    error(0.0459483) D28 D33
+    error(0.0267809) D28 D33 D39 L0
+    error(0.00341381) D28 D33 D41 L0
+    error(0.183981) D28 D39
+    error(0.0101717) D28 D41
+    error(0.24555) D28 L0
+    error(0.140818) D29 D31
+    error(0.0762184) D29 D32
+    error(0.00341381) D29 D34 D35 D39
+    error(0.0267809) D29 D34 D35 D40
+    error(0.00341381) D29 D34 D35 D42
+    error(0.0267809) D29 D34 D35 L0
+    error(0.00341381) D29 D34 D40
+    error(0.0267809) D29 D34 L0
+    error(0.00680431) D29 D39
+    error(0.183981) D29 D40
+    error(0.00680431) D29 D42
+    error(0.232985) D29 L0
+    error(0.13336) D30
+    error(0.230378) D30 D41
+    error(0.238417) D31
+    error(0.00341381) D31 D35 D36
+    error(0.0267809) D31 D35 D36 D39
+    error(0.00341381) D31 D35 D36 D41
+    error(0.0267809) D31 D35 D36 D42
+    error(0.00341381) D31 D36 D41 L0
+    error(0.00341381) D31 D36 L0
+    error(0.0521273) D31 D39
+    error(0.00680431) D31 D41
+    error(0.183981) D31 D42
+    error(0.150612) D32
+    error(0.0459483) D32 D37
+    error(0.0267809) D32 D37 D40
+    error(0.00341381) D32 D37 D42
+    error(0.0300118) D32 D37 D43
+    error(0.0643393) D32 D40
+    error(0.00680431) D32 D42
+    error(0.230378) D32 D43
+    error(0.0961596) D33 D35
+    error(0.0300118) D33 D35 D39 D44
+    error(0.123082) D33 D35 D39 L0
+    error(0.0961596) D33 D39
+    error(0.00341381) D33 D39 D41 L0
+    error(0.230378) D33 D44
+    error(0.167053) D33 L0
+    error(0.14821) D34
+    error(0.150612) D34 D35
+    error(0.00341381) D34 D35 D36 D39 D40 D41
+    error(0.0733051) D34 D35 D36 D39 D41 L0
+    error(0.0733051) D34 D35 D36 D40
+    error(0.00341381) D34 D35 D36 L0
+    error(0.00341381) D34 D35 D39 D40 D41 L0
+    error(0.0733051) D34 D35 D39 D41
+    error(0.00341381) D34 D35 D39 L0
+    error(0.00341381) D34 D35 D40 D42
+    error(0.0583288) D34 D35 D40 L0
+    error(0.0428269) D34 D36 D40
+    error(0.00341381) D34 D36 D40 D41
+    error(0.0300118) D34 D36 D40 D45
+    error(0.0300118) D34 D36 D41 D52 L0
+    error(0.0428269) D34 D36 D41 L0
+    error(0.00341381) D34 D36 L0
+    error(0.00341381) D34 D40 D41 L0
+    error(0.0990136) D34 D40 L0
+    error(0.0428269) D34 D41
+    error(0.230378) D34 D41 D52
+    error(0.230378) D34 D45
+    error(0.155367) D35 D36
+    error(0.0267809) D35 D36 D37 D40 D42 D46
+    error(0.0267809) D35 D36 D37 D42 D50
+    error(0.00341381) D35 D36 D39 D40
+    error(0.00341381) D35 D36 D39 D41
+    error(0.0583288) D35 D36 D39 D42
+    error(0.00341381) D35 D36 D39 D44
+    error(0.00680431) D35 D36 D39 D44 D50
+    error(0.00341381) D35 D36 D39 D44 D52
+    error(0.00341381) D35 D36 D39 D50 L0
+    error(0.0101717) D35 D36 D39 D52 L0
+    error(0.0428269) D35 D36 D40 D42
+    error(0.0101717) D35 D36 D40 D45
+    error(0.00341381) D35 D36 D40 D45 D50
+    error(0.00341381) D35 D36 D40 D46
+    error(0.00680431) D35 D36 D40 D46 D50
+    error(0.00341381) D35 D36 D42
+    error(0.00341381) D35 D36 D50
+    error(0.0933834) D35 D37
+    error(0.00341381) D35 D37 D39 D40
+    error(0.0428269) D35 D37 D39 D42
+    error(0.0613444) D35 D37 D40 D42
+    error(0.00341381) D35 D37 D42 D46 D50
+    error(0.167053) D35 D39
+    error(0.0267809) D35 D39 D44 D50 L0
+    error(0.00341381) D35 D39 D44 D52 L0
+    error(0.0459483) D35 D39 D44 L0
+    error(0.183981) D35 D39 D50
+    error(0.0101717) D35 D39 D52
+    error(0.00341381) D35 D40 D50
+    error(0.0643393) D35 D44
+    error(0.0428269) D35 D44 D50
+    error(0.0101717) D35 D45
+    error(0.00341381) D35 D45 D50
+    error(0.183981) D35 D46
+    error(0.0267809) D35 D46 D50
+    error(0.00680431) D35 L0
+    error(0.00341381) D36 D37
+    error(0.00341381) D36 D37 D38
+    error(0.00341381) D36 D37 D38 D40 D42 D43
+    error(0.00341381) D36 D37 D38 D40 D42 D46
+    error(0.0428269) D36 D37 D38 D40 D43
+    error(0.00341381) D36 D37 D38 D40 D53
+    error(0.0428269) D36 D37 D38 D42
+    error(0.00341381) D36 D37 D39 D40
+    error(0.0428269) D36 D37 D39 D42
+    error(0.00341381) D36 D37 D40
+    error(0.0791118) D36 D37 D40 D42
+    error(0.00341381) D36 D37 D40 D45
+    error(0.00680431) D36 D37 D40 D45 D51
+    error(0.00341381) D36 D37 D40 D45 D53
+    error(0.00341381) D36 D37 D40 D46 D51
+    error(0.00680431) D36 D37 D40 D46 D53
+    error(0.0267809) D36 D37 D40 D51
+    error(0.00680431) D36 D37 D42 D46 D50
+    error(0.00341381) D36 D37 D42 D46 D52
+    error(0.0267809) D36 D37 D42 D47
+    error(0.00341381) D36 D37 D42 D47 D50
+    error(0.00680431) D36 D37 D42 D47 D52
+    error(0.00341381) D36 D37 D42 D52 L0
+    error(0.00341381) D36 D37 D42 L0
+    error(0.0933834) D36 D38
+    error(0.00341381) D36 D38 D40 D42
+    error(0.00341381) D36 D38 D40 D42 D43
+    error(0.0428269) D36 D38 D40 D43
+    error(0.00341381) D36 D38 D40 D46 D53
+    error(0.0583288) D36 D38 D42
+    error(0.00341381) D36 D39
+    error(0.00341381) D36 D39 D40 D41
+    error(0.0583288) D36 D39 D41 L0
+    error(0.0267809) D36 D39 D50
+    error(0.15772) D36 D40
+    error(0.00341381) D36 D40 D41
+    error(0.0267809) D36 D40 D42 D46
+    error(0.0267809) D36 D40 D45
+    error(0.0267809) D36 D40 D45 D46
+    error(0.00341381) D36 D40 D45 D46 D50
+    error(0.0267809) D36 D40 D45 D46 D51
+    error(0.00341381) D36 D40 D45 D46 D53
+    error(0.00341381) D36 D40 D45 D51
+    error(0.00680431) D36 D40 D50
+    error(0.183981) D36 D40 D51
+    error(0.00680431) D36 D40 D53
+    error(0.0990136) D36 D41 L0
+    error(0.00680431) D36 D44
+    error(0.00341381) D36 D44 D50
+    error(0.00341381) D36 D44 D50 D52
+    error(0.00680431) D36 D46
+    error(0.00341381) D36 D46 D50 D52
+    error(0.183981) D36 D47
+    error(0.0267809) D36 D47 D50 D52
+    error(0.00341381) D36 D47 D52
+    error(0.0267809) D36 D50 D52 L0
+    error(0.0267809) D36 D52 L0
+    error(0.254178) D36 L0
+    error(0.265745) D37
+    error(0.150612) D37 D38
+    error(0.0877736) D37 D38 D42
+    error(0.00341381) D37 D38 D42 D43
+    error(0.00341381) D37 D38 D42 D46
+    error(0.00680431) D37 D38 D42 D46 D53
+    error(0.0428269) D37 D38 D42 D47
+    error(0.00341381) D37 D38 D42 D47 D53
+    error(0.0428269) D37 D38 D43
+    error(0.0267809) D37 D38 D43 D48
+    error(0.00341381) D37 D38 D43 D48 D51
+    error(0.00680431) D37 D38 D43 D48 D53
+    error(0.0428269) D37 D38 D43 D51
+    error(0.00341381) D37 D38 D43 D53
+    error(0.0267809) D37 D38 D53
+    error(0.00341381) D37 D40 D42
+    error(0.00341381) D37 D40 D42 D43
+    error(0.00341381) D37 D40 D42 D46
+    error(0.0583288) D37 D40 D43
+    error(0.128212) D37 D42
+    error(0.00341381) D37 D42 D43
+    error(0.00341381) D37 D42 D46 D47
+    error(0.0267809) D37 D42 D46 D47 D50
+    error(0.00341381) D37 D42 D46 D47 D52
+    error(0.0267809) D37 D42 D46 D47 D53
+    error(0.00341381) D37 D42 D47 D52 L0
+    error(0.00341381) D37 D42 D47 L0
+    error(0.0521273) D37 D42 D50
+    error(0.00680431) D37 D42 D52
+    error(0.183981) D37 D42 D53
+    error(0.0905881) D37 D43
+    error(0.00341381) D37 D43 D53
+    error(0.00680431) D37 D45
+    error(0.00341381) D37 D45 D51
+    error(0.00341381) D37 D45 D51 D53
+    error(0.0521273) D37 D46
+    error(0.0267809) D37 D46 D51 D53
+    error(0.183981) D37 D48
+    error(0.0267809) D37 D48 D51 D53
+    error(0.00341381) D37 D48 D53
+    error(0.00341381) D37 D51
+    error(0.00341381) D37 D51 D53
+    error(0.00341381) D38
+    error(0.0428269) D38 D42
+    error(0.00341381) D38 D42 D43
+    error(0.0267809) D38 D42 D53
+    error(0.0961596) D38 D43
+    error(0.0459483) D38 D43 D48
+    error(0.0267809) D38 D43 D48 D51
+    error(0.00341381) D38 D43 D48 D53
+    error(0.0300118) D38 D43 D48 D54
+    error(0.0643393) D38 D43 D51
+    error(0.00680431) D38 D43 D53
+    error(0.230378) D38 D43 D54
+    error(0.00680431) D38 D46
+    error(0.00341381) D38 D46 D53
+    error(0.0643393) D38 D47
+    error(0.0267809) D38 D47 D53
+    error(0.0101717) D38 D48
+    error(0.0101717) D38 D48 D53
+    error(0.230378) D38 D49
+    error(0.0300118) D38 D49 D53
+    error(0.00341381) D39 D40
+    error(0.00341381) D39 D40 D41 L0
+    error(0.0933834) D39 D41
+    error(0.0583288) D39 D42
+    error(0.0267809) D39 D44
+    error(0.00341381) D39 D44 D50
+    error(0.152998) D39 L0
+    error(0.00341381) D40 D41 L0
+    error(0.0933834) D40 D42
+    error(0.00341381) D40 D42 D43
+    error(0.0583288) D40 D43
+    error(0.00341381) D40 D46 D50
+    error(0.145792) D40 L0
+    error(0.117882) D41
+    error(0.180538) D42
+    error(0.00341381) D42 D43
+    error(0.00341381) D42 D46 D53
+    error(0.0877736) D43
+    error(0.00341381) D43 D48
+    error(0.00341381) D43 D48 D53
+    error(0.0762184) D44 D46
+    error(0.0762184) D44 D46 D50
+    error(0.00341381) D44 D50 D52 L0
+    error(0.0300118) D44 D50 D55
+    error(0.104471) D44 D50 L0
+    error(0.230378) D44 D55
+    error(0.150612) D44 L0
+    error(0.13336) D45
+    error(0.135863) D45 D46
+    error(0.00341381) D45 D46 D50
+    error(0.104471) D45 D46 D51
+    error(0.00341381) D45 D46 D51 D53
+    error(0.115255) D45 D51
+    error(0.0300118) D45 D51 D56
+    error(0.230378) D45 D56
+    error(0.140818) D46 D47
+    error(0.00341381) D46 D47 D50
+    error(0.00341381) D46 D47 D50 D52
+    error(0.0762184) D46 D47 D50 D53
+    error(0.0267809) D46 D47 D50 D61
+    error(0.00341381) D46 D47 D51 D53
+    error(0.00341381) D46 D47 D51 D61
+    error(0.00341381) D46 D47 D53
+    error(0.0267809) D46 D47 D53 D61
+    error(0.00341381) D46 D47 D61
+    error(0.0762184) D46 D48
+    error(0.0762184) D46 D48 D51 D53
+    error(0.0267809) D46 D50 D55
+    error(0.00341381) D46 D50 D55 D61
+    error(0.0267809) D46 D51 D53 D57
+    error(0.0101717) D46 D51 D56
+    error(0.00341381) D46 D51 D56 D61
+    error(0.00341381) D46 D51 D57
+    error(0.00680431) D46 D51 D57 D61
+    error(0.00341381) D46 D53 D57 D61
+    error(0.0643393) D46 D55
+    error(0.0428269) D46 D55 D61
+    error(0.0101717) D46 D56
+    error(0.00341381) D46 D56 D61
+    error(0.183981) D46 D57
+    error(0.0267809) D46 D57 D61
+    error(0.0762184) D47 D49
+    error(0.0762184) D47 D49 D53
+    error(0.104471) D47 D50 D52 L0
+    error(0.00341381) D47 D50 D55
+    error(0.00680431) D47 D50 D55 D61
+    error(0.00341381) D47 D50 D55 D63
+    error(0.00341381) D47 D50 D61 L0
+    error(0.0101717) D47 D50 D63 L0
+    error(0.00341381) D47 D51 D53 D57
+    error(0.00341381) D47 D51 D57 D61
+    error(0.0300118) D47 D52 D63 L0
+    error(0.115255) D47 D52 L0
+    error(0.00680431) D47 D53 D57 D61
+    error(0.00341381) D47 D53 D57 D63
+    error(0.0267809) D47 D53 D58
+    error(0.00341381) D47 D53 D58 D61
+    error(0.00680431) D47 D53 D58 D63
+    error(0.00341381) D47 D53 D63 L0
+    error(0.00341381) D47 D53 L0
+    error(0.00680431) D47 D55
+    error(0.00341381) D47 D55 D61
+    error(0.00341381) D47 D55 D61 D63
+    error(0.00680431) D47 D57
+    error(0.00341381) D47 D57 D61 D63
+    error(0.183981) D47 D58
+    error(0.0267809) D47 D58 D61 D63
+    error(0.00341381) D47 D58 D63
+    error(0.0267809) D47 D61 D63 L0
+    error(0.0267809) D47 D63 L0
+    error(0.232985) D47 L0
+    error(0.24555) D48
+    error(0.135863) D48 D49
+    error(0.00341381) D48 D49 D51 D53
+    error(0.00341381) D48 D49 D51 D64
+    error(0.104471) D48 D49 D53
+    error(0.0267809) D48 D49 D53 D64
+    error(0.00341381) D48 D49 D54
+    error(0.00341381) D48 D49 D54 D64
+    error(0.0267809) D48 D49 D64
+    error(0.00341381) D48 D51
+    error(0.00341381) D48 D51 D53
+    error(0.0267809) D48 D51 D53 D57
+    error(0.0762184) D48 D51 D54
+    error(0.00341381) D48 D51 D56
+    error(0.00680431) D48 D51 D56 D62
+    error(0.00341381) D48 D51 D56 D64
+    error(0.00341381) D48 D51 D57 D62
+    error(0.00680431) D48 D51 D57 D64
+    error(0.0267809) D48 D51 D62
+    error(0.00341381) D48 D53 D57 D64
+    error(0.104471) D48 D54
+    error(0.0267809) D48 D54 D59
+    error(0.00341381) D48 D54 D59 D62
+    error(0.00680431) D48 D54 D59 D64
+    error(0.0428269) D48 D54 D62
+    error(0.00341381) D48 D54 D64
+    error(0.00680431) D48 D56
+    error(0.00341381) D48 D56 D62
+    error(0.00341381) D48 D56 D62 D64
+    error(0.0521273) D48 D57
+    error(0.0267809) D48 D57 D62 D64
+    error(0.183981) D48 D59
+    error(0.0267809) D48 D59 D62 D64
+    error(0.00341381) D48 D59 D64
+    error(0.00341381) D48 D62
+    error(0.00341381) D48 D62 D64
+    error(0.00341381) D49 D51 D53 D57
+    error(0.00341381) D49 D51 D57 D64
+    error(0.00341381) D49 D53 D57
+    error(0.00680431) D49 D53 D57 D64
+    error(0.0428269) D49 D53 D58
+    error(0.00341381) D49 D53 D58 D64
+    error(0.00341381) D49 D54 D59
+    error(0.00341381) D49 D54 D59 D64
+    error(0.00680431) D49 D57
+    error(0.00341381) D49 D57 D64
+    error(0.0643393) D49 D58
+    error(0.0267809) D49 D58 D64
+    error(0.0101717) D49 D59
+    error(0.0101717) D49 D59 D64
+    error(0.230378) D49 D60
+    error(0.0300118) D49 D60 D64
+    error(0.24555) D50
+    error(0.135863) D50 D52
+    error(0.0762184) D50 D53
+    error(0.0267809) D50 D55 D61 L0
+    error(0.00341381) D50 D55 D63 L0
+    error(0.0459483) D50 D55 L0
+    error(0.183981) D50 D61
+    error(0.0101717) D50 D63
+    error(0.232985) D51
+    error(0.140818) D51 D53
+    error(0.0762184) D51 D54
+    error(0.0267809) D51 D56
+    error(0.0267809) D51 D56 D57
+    error(0.00341381) D51 D56 D57 D61
+    error(0.0267809) D51 D56 D57 D62
+    error(0.00341381) D51 D56 D57 D64
+    error(0.00341381) D51 D56 D62
+    error(0.00680431) D51 D61
+    error(0.183981) D51 D62
+    error(0.00680431) D51 D64
+    error(0.13336) D52
+    error(0.230378) D52 D63
+    error(0.238417) D53
+    error(0.00341381) D53 D57 D58
+    error(0.0267809) D53 D57 D58 D61
+    error(0.00341381) D53 D57 D58 D63
+    error(0.0267809) D53 D57 D58 D64
+    error(0.00341381) D53 D58 D63 L0
+    error(0.00341381) D53 D58 L0
+    error(0.0521273) D53 D61
+    error(0.00680431) D53 D63
+    error(0.183981) D53 D64
+    error(0.150612) D54
+    error(0.0459483) D54 D59
+    error(0.0267809) D54 D59 D62
+    error(0.00341381) D54 D59 D64
+    error(0.0300118) D54 D59 D65
+    error(0.0643393) D54 D62
+    error(0.00680431) D54 D64
+    error(0.230378) D54 D65
+    error(0.0961596) D55 D57
+    error(0.123082) D55 D57 D61
+    error(0.0300118) D55 D57 D61 D66 L0
+    error(0.00341381) D55 D61 D63 L0
+    error(0.0961596) D55 D61 L0
+    error(0.230378) D55 D66
+    error(0.167053) D55 L0
+    error(0.14821) D56
+    error(0.150612) D56 D57
+    error(0.00341381) D56 D57 D58 D61 D62 D63 L0
+    error(0.0733051) D56 D57 D58 D61 D63 L0
+    error(0.0733051) D56 D57 D58 D62 L0
+    error(0.00341381) D56 D57 D58 L0
+    error(0.00341381) D56 D57 D61
+    error(0.00341381) D56 D57 D61 D62 D63
+    error(0.0733051) D56 D57 D61 D63
+    error(0.0583288) D56 D57 D62
+    error(0.00341381) D56 D57 D62 D64
+    error(0.00341381) D56 D58 D62 D63 L0
+    error(0.0300118) D56 D58 D62 D67 L0
+    error(0.0428269) D56 D58 D62 L0
+    error(0.0300118) D56 D58 D63 D74 L0
+    error(0.0428269) D56 D58 D63 L0
+    error(0.00341381) D56 D58 L0
+    error(0.0990136) D56 D62
+    error(0.00341381) D56 D62 D63
+    error(0.0428269) D56 D63
+    error(0.230378) D56 D63 D74
+    error(0.230378) D56 D67
+    error(0.155367) D57 D58
+    error(0.0267809) D57 D58 D59 D62 D64 D68
+    error(0.0267809) D57 D58 D59 D64 D72
+    error(0.00341381) D57 D58 D61 D62
+    error(0.00341381) D57 D58 D61 D63
+    error(0.0583288) D57 D58 D61 D64
+    error(0.00680431) D57 D58 D61 D66 D72
+    error(0.00341381) D57 D58 D61 D66 D74
+    error(0.00341381) D57 D58 D61 D66 L0
+    error(0.00341381) D57 D58 D61 D72 L0
+    error(0.0101717) D57 D58 D61 D74 L0
+    error(0.0428269) D57 D58 D62 D64
+    error(0.00341381) D57 D58 D62 D67 D72
+    error(0.0101717) D57 D58 D62 D67 L0
+    error(0.00680431) D57 D58 D62 D68 D72
+    error(0.00341381) D57 D58 D62 D68 L0
+    error(0.00341381) D57 D58 D64
+    error(0.00341381) D57 D58 D72 L0
+    error(0.0933834) D57 D59
+    error(0.00341381) D57 D59 D61 D62
+    error(0.0428269) D57 D59 D61 D64
+    error(0.0613444) D57 D59 D62 D64
+    error(0.00341381) D57 D59 D64 D68 D72
+    error(0.0459483) D57 D61 D66
+    error(0.0267809) D57 D61 D66 D72 L0
+    error(0.00341381) D57 D61 D66 D74 L0
+    error(0.183981) D57 D61 D72
+    error(0.0101717) D57 D61 D74
+    error(0.167053) D57 D61 L0
+    error(0.00341381) D57 D62 D72
+    error(0.0643393) D57 D66
+    error(0.0428269) D57 D66 D72 L0
+    error(0.0101717) D57 D67
+    error(0.00341381) D57 D67 D72 L0
+    error(0.183981) D57 D68
+    error(0.0267809) D57 D68 D72 L0
+    error(0.00680431) D57 L0
+    error(0.00341381) D58 D59
+    error(0.00341381) D58 D59 D60
+    error(0.00341381) D58 D59 D60 D62 D64 D65
+    error(0.00341381) D58 D59 D60 D62 D64 D68
+    error(0.0428269) D58 D59 D60 D62 D65
+    error(0.00341381) D58 D59 D60 D62 D75
+    error(0.0428269) D58 D59 D60 D64
+    error(0.00341381) D58 D59 D61 D62
+    error(0.0428269) D58 D59 D61 D64
+    error(0.0791118) D58 D59 D62 D64
+    error(0.00680431) D58 D59 D62 D67 D73
+    error(0.00341381) D58 D59 D62 D67 D75
+    error(0.00341381) D58 D59 D62 D67 L0
+    error(0.00341381) D58 D59 D62 D68 D73
+    error(0.00680431) D58 D59 D62 D68 D75
+    error(0.0267809) D58 D59 D62 D73
+    error(0.00341381) D58 D59 D62 L0
+    error(0.00680431) D58 D59 D64 D68 D72
+    error(0.00341381) D58 D59 D64 D68 D74
+    error(0.0267809) D58 D59 D64 D69
+    error(0.00341381) D58 D59 D64 D69 D72
+    error(0.00680431) D58 D59 D64 D69 D74
+    error(0.00341381) D58 D59 D64 D74 L0
+    error(0.00341381) D58 D59 D64 L0
+    error(0.0933834) D58 D60
+    error(0.00341381) D58 D60 D62 D64
+    error(0.00341381) D58 D60 D62 D64 D65
+    error(0.0428269) D58 D60 D62 D65
+    error(0.00341381) D58 D60 D62 D68 D75
+    error(0.0583288) D58 D60 D64
+    error(0.00341381) D58 D61 D62 D63 L0
+    error(0.0583288) D58 D61 D63 L0
+    error(0.0267809) D58 D61 D72
+    error(0.00341381) D58 D61 L0
+    error(0.00341381) D58 D62 D63 L0
+    error(0.0267809) D58 D62 D64 D68
+    error(0.00341381) D58 D62 D67 D68 D72
+    error(0.0267809) D58 D62 D67 D68 D73
+    error(0.00341381) D58 D62 D67 D68 D75
+    error(0.0267809) D58 D62 D67 D68 L0
+    error(0.00341381) D58 D62 D67 D73
+    error(0.0267809) D58 D62 D67 L0
+    error(0.00680431) D58 D62 D72
+    error(0.183981) D58 D62 D73
+    error(0.00680431) D58 D62 D75
+    error(0.15772) D58 D62 L0
+    error(0.0990136) D58 D63 L0
+    error(0.00680431) D58 D66
+    error(0.00341381) D58 D66 D72 D74
+    error(0.00341381) D58 D66 D72 L0
+    error(0.00680431) D58 D68
+    error(0.00341381) D58 D68 D72 D74
+    error(0.183981) D58 D69
+    error(0.0267809) D58 D69 D72 D74
+    error(0.00341381) D58 D69 D74
+    error(0.0267809) D58 D72 D74 L0
+    error(0.0267809) D58 D74 L0
+    error(0.254178) D58 L0
+    error(0.265745) D59
+    error(0.150612) D59 D60
+    error(0.0877736) D59 D60 D64
+    error(0.00341381) D59 D60 D64 D65
+    error(0.00341381) D59 D60 D64 D68
+    error(0.00680431) D59 D60 D64 D68 D75
+    error(0.0428269) D59 D60 D64 D69
+    error(0.00341381) D59 D60 D64 D69 D75
+    error(0.0428269) D59 D60 D65
+    error(0.0267809) D59 D60 D65 D70
+    error(0.00341381) D59 D60 D65 D70 D73
+    error(0.00680431) D59 D60 D65 D70 D75
+    error(0.0428269) D59 D60 D65 D73
+    error(0.00341381) D59 D60 D65 D75
+    error(0.0267809) D59 D60 D75
+    error(0.00341381) D59 D62 D64
+    error(0.00341381) D59 D62 D64 D65
+    error(0.00341381) D59 D62 D64 D68
+    error(0.0583288) D59 D62 D65
+    error(0.128212) D59 D64
+    error(0.00341381) D59 D64 D65
+    error(0.00341381) D59 D64 D68 D69
+    error(0.0267809) D59 D64 D68 D69 D72
+    error(0.00341381) D59 D64 D68 D69 D74
+    error(0.0267809) D59 D64 D68 D69 D75
+    error(0.00341381) D59 D64 D69 D74 L0
+    error(0.00341381) D59 D64 D69 L0
+    error(0.0521273) D59 D64 D72
+    error(0.00680431) D59 D64 D74
+    error(0.183981) D59 D64 D75
+    error(0.0905881) D59 D65
+    error(0.00341381) D59 D65 D75
+    error(0.00680431) D59 D67
+    error(0.00341381) D59 D67 D73 D75
+    error(0.00341381) D59 D67 D73 L0
+    error(0.0521273) D59 D68
+    error(0.0267809) D59 D68 D73 D75
+    error(0.183981) D59 D70
+    error(0.0267809) D59 D70 D73 D75
+    error(0.00341381) D59 D70 D75
+    error(0.00341381) D59 D73 D75
+    error(0.00341381) D59 D73 L0
+    error(0.00341381) D60
+    error(0.0428269) D60 D64
+    error(0.00341381) D60 D64 D65
+    error(0.0267809) D60 D64 D75
+    error(0.0961596) D60 D65
+    error(0.0459483) D60 D65 D70
+    error(0.0267809) D60 D65 D70 D73
+    error(0.00341381) D60 D65 D70 D75
+    error(0.0300118) D60 D65 D70 D76
+    error(0.0643393) D60 D65 D73
+    error(0.00680431) D60 D65 D75
+    error(0.230378) D60 D65 D76
+    error(0.00680431) D60 D68
+    error(0.00341381) D60 D68 D75
+    error(0.0643393) D60 D69
+    error(0.0267809) D60 D69 D75
+    error(0.0101717) D60 D70
+    error(0.0101717) D60 D70 D75
+    error(0.230378) D60 D71
+    error(0.0300118) D60 D71 D75
+    error(0.152998) D61
+    error(0.00341381) D61 D62
+    error(0.00341381) D61 D62 D63
+    error(0.0933834) D61 D63
+    error(0.0583288) D61 D64
+    error(0.00341381) D61 D66 D72
+    error(0.0267809) D61 D66 L0
+    error(0.145792) D62
+    error(0.00341381) D62 D63
+    error(0.0933834) D62 D64
+    error(0.00341381) D62 D64 D65
+    error(0.0583288) D62 D65
+    error(0.00341381) D62 D68 D72
+    error(0.117882) D63
+    error(0.180538) D64
+    error(0.00341381) D64 D65
+    error(0.00341381) D64 D68 D75
+    error(0.0877736) D65
+    error(0.00341381) D65 D70
+    error(0.00341381) D65 D70 D75
+    error(0.0762184) D66 D68
+    error(0.0762184) D66 D68 D72 L0
+    error(0.104471) D66 D72
+    error(0.00341381) D66 D72 D74 L0
+    error(0.0300118) D66 D72 D77 L0
+    error(0.230378) D66 D77
+    error(0.150612) D66 L0
+    error(0.13336) D67
+    error(0.135863) D67 D68
+    error(0.00341381) D67 D68 D72 L0
+    error(0.00341381) D67 D68 D73 D75
+    error(0.104471) D67 D68 D73 L0
+    error(0.0300118) D67 D73 D78 L0
+    error(0.115255) D67 D73 L0
+    error(0.230378) D67 D78
+    error(0.140818) D68 D69
+    error(0.00341381) D68 D69 D72 D74
+    error(0.0762184) D68 D69 D72 D75
+    error(0.0267809) D68 D69 D72 D83
+    error(0.00341381) D68 D69 D72 L0
+    error(0.00341381) D68 D69 D73 D75
+    error(0.00341381) D68 D69 D73 D83
+    error(0.00341381) D68 D69 D75
+    error(0.0267809) D68 D69 D75 D83
+    error(0.00341381) D68 D69 D83 L0
+    error(0.0762184) D68 D70
+    error(0.0762184) D68 D70 D73 D75
+    error(0.00341381) D68 D72 D77 D83
+    error(0.0267809) D68 D72 D77 L0
+    error(0.0267809) D68 D73 D75 D79
+    error(0.00341381) D68 D73 D78 D83
+    error(0.0101717) D68 D73 D78 L0
+    error(0.00680431) D68 D73 D79 D83
+    error(0.00341381) D68 D73 D79 L0
+    error(0.00341381) D68 D75 D79 D83
+    error(0.0643393) D68 D77
+    error(0.0428269) D68 D77 D83 L0
+    error(0.0101717) D68 D78
+    error(0.00341381) D68 D78 D83 L0
+    error(0.183981) D68 D79
+    error(0.0267809) D68 D79 D83 L0
+    error(0.0762184) D69 D71
+    error(0.0762184) D69 D71 D75
+    error(0.104471) D69 D72 D74 L0
+    error(0.00680431) D69 D72 D77 D83
+    error(0.00341381) D69 D72 D77 D85
+    error(0.00341381) D69 D72 D77 L0
+    error(0.00341381) D69 D72 D83 L0
+    error(0.0101717) D69 D72 D85 L0
+    error(0.00341381) D69 D73 D75 D79
+    error(0.00341381) D69 D73 D79 D83
+    error(0.0300118) D69 D74 D85 L0
+    error(0.115255) D69 D74 L0
+    error(0.00680431) D69 D75 D79 D83
+    error(0.00341381) D69 D75 D79 D85
+    error(0.0267809) D69 D75 D80
+    error(0.00341381) D69 D75 D80 D83
+    error(0.00680431) D69 D75 D80 D85
+    error(0.00341381) D69 D75 D85 L0
+    error(0.00341381) D69 D75 L0
+    error(0.00680431) D69 D77
+    error(0.00341381) D69 D77 D83 D85
+    error(0.00341381) D69 D77 D83 L0
+    error(0.00680431) D69 D79
+    error(0.00341381) D69 D79 D83 D85
+    error(0.183981) D69 D80
+    error(0.0267809) D69 D80 D83 D85
+    error(0.00341381) D69 D80 D85
+    error(0.0267809) D69 D83 D85 L0
+    error(0.0267809) D69 D85 L0
+    error(0.232985) D69 L0
+    error(0.24555) D70
+    error(0.135863) D70 D71
+    error(0.00341381) D70 D71 D73 D75
+    error(0.00341381) D70 D71 D73 D86
+    error(0.104471) D70 D71 D75
+    error(0.0267809) D70 D71 D75 D86
+    error(0.00341381) D70 D71 D76
+    error(0.00341381) D70 D71 D76 D86
+    error(0.0267809) D70 D71 D86
+    error(0.00341381) D70 D73 D75
+    error(0.0267809) D70 D73 D75 D79
+    error(0.0762184) D70 D73 D76
+    error(0.00680431) D70 D73 D78 D84
+    error(0.00341381) D70 D73 D78 D86
+    error(0.00341381) D70 D73 D78 L0
+    error(0.00341381) D70 D73 D79 D84
+    error(0.00680431) D70 D73 D79 D86
+    error(0.0267809) D70 D73 D84
+    error(0.00341381) D70 D73 L0
+    error(0.00341381) D70 D75 D79 D86
+    error(0.104471) D70 D76
+    error(0.0267809) D70 D76 D81
+    error(0.00341381) D70 D76 D81 D84
+    error(0.00680431) D70 D76 D81 D86
+    error(0.0428269) D70 D76 D84
+    error(0.00341381) D70 D76 D86
+    error(0.00680431) D70 D78
+    error(0.00341381) D70 D78 D84 D86
+    error(0.00341381) D70 D78 D84 L0
+    error(0.0521273) D70 D79
+    error(0.0267809) D70 D79 D84 D86
+    error(0.183981) D70 D81
+    error(0.0267809) D70 D81 D84 D86
+    error(0.00341381) D70 D81 D86
+    error(0.00341381) D70 D84 D86
+    error(0.00341381) D70 D84 L0
+    error(0.00341381) D71 D73 D75 D79
+    error(0.00341381) D71 D73 D79 D86
+    error(0.00341381) D71 D75 D79
+    error(0.00680431) D71 D75 D79 D86
+    error(0.0428269) D71 D75 D80
+    error(0.00341381) D71 D75 D80 D86
+    error(0.00341381) D71 D76 D81
+    error(0.00341381) D71 D76 D81 D86
+    error(0.00680431) D71 D79
+    error(0.00341381) D71 D79 D86
+    error(0.0643393) D71 D80
+    error(0.0267809) D71 D80 D86
+    error(0.0101717) D71 D81
+    error(0.0101717) D71 D81 D86
+    error(0.230378) D71 D82
+    error(0.0300118) D71 D82 D86
+    error(0.135863) D72 D74
+    error(0.0762184) D72 D75
+    error(0.0459483) D72 D77
+    error(0.0267809) D72 D77 D83 L0
+    error(0.00341381) D72 D77 D85 L0
+    error(0.183981) D72 D83
+    error(0.0101717) D72 D85
+    error(0.24555) D72 L0
+    error(0.140818) D73 D75
+    error(0.0762184) D73 D76
+    error(0.00341381) D73 D78 D79 D83
+    error(0.0267809) D73 D78 D79 D84
+    error(0.00341381) D73 D78 D79 D86
+    error(0.0267809) D73 D78 D79 L0
+    error(0.00341381) D73 D78 D84
+    error(0.0267809) D73 D78 L0
+    error(0.00680431) D73 D83
+    error(0.183981) D73 D84
+    error(0.00680431) D73 D86
+    error(0.232985) D73 L0
+    error(0.13336) D74
+    error(0.230378) D74 D85
+    error(0.238417) D75
+    error(0.00341381) D75 D79 D80
+    error(0.0267809) D75 D79 D80 D83
+    error(0.00341381) D75 D79 D80 D85
+    error(0.0267809) D75 D79 D80 D86
+    error(0.00341381) D75 D80 D85 L0
+    error(0.00341381) D75 D80 L0
+    error(0.0521273) D75 D83
+    error(0.00680431) D75 D85
+    error(0.183981) D75 D86
+    error(0.150612) D76
+    error(0.0459483) D76 D81
+    error(0.0267809) D76 D81 D84
+    error(0.00341381) D76 D81 D86
+    error(0.0300118) D76 D81 D87
+    error(0.0643393) D76 D84
+    error(0.00680431) D76 D86
+    error(0.230378) D76 D87
+    error(0.0961596) D77 D79
+    error(0.0300118) D77 D79 D83 D88
+    error(0.123082) D77 D79 D83 L0
+    error(0.0961596) D77 D83
+    error(0.00341381) D77 D83 D85 L0
+    error(0.230378) D77 D88
+    error(0.167053) D77 L0
+    error(0.14821) D78
+    error(0.150612) D78 D79
+    error(0.00341381) D78 D79 D80 D83 D84 D85
+    error(0.0733051) D78 D79 D80 D83 D85 L0
+    error(0.0733051) D78 D79 D80 D84
+    error(0.00341381) D78 D79 D80 L0
+    error(0.00341381) D78 D79 D83 D84 D85 L0
+    error(0.0733051) D78 D79 D83 D85
+    error(0.00341381) D78 D79 D83 L0
+    error(0.00341381) D78 D79 D84 D86
+    error(0.0583288) D78 D79 D84 L0
+    error(0.0428269) D78 D80 D84
+    error(0.00341381) D78 D80 D84 D85
+    error(0.0300118) D78 D80 D84 D89
+    error(0.0300118) D78 D80 D85 D96 L0
+    error(0.0428269) D78 D80 D85 L0
+    error(0.00341381) D78 D80 L0
+    error(0.00341381) D78 D84 D85 L0
+    error(0.0990136) D78 D84 L0
+    error(0.0428269) D78 D85
+    error(0.230378) D78 D85 D96
+    error(0.230378) D78 D89
+    error(0.155367) D79 D80
+    error(0.0267809) D79 D80 D81 D84 D86 D90
+    error(0.0267809) D79 D80 D81 D86 D94
+    error(0.00341381) D79 D80 D83 D84
+    error(0.00341381) D79 D80 D83 D85
+    error(0.0583288) D79 D80 D83 D86
+    error(0.00341381) D79 D80 D83 D88
+    error(0.00680431) D79 D80 D83 D88 D94
+    error(0.00341381) D79 D80 D83 D88 D96
+    error(0.00341381) D79 D80 D83 D94 L0
+    error(0.0101717) D79 D80 D83 D96 L0
+    error(0.0428269) D79 D80 D84 D86
+    error(0.0101717) D79 D80 D84 D89
+    error(0.00341381) D79 D80 D84 D89 D94
+    error(0.00341381) D79 D80 D84 D90
+    error(0.00680431) D79 D80 D84 D90 D94
+    error(0.00341381) D79 D80 D86
+    error(0.00341381) D79 D80 D94
+    error(0.0933834) D79 D81
+    error(0.00341381) D79 D81 D83 D84
+    error(0.0428269) D79 D81 D83 D86
+    error(0.0613444) D79 D81 D84 D86
+    error(0.00341381) D79 D81 D86 D90 D94
+    error(0.167053) D79 D83
+    error(0.0267809) D79 D83 D88 D94 L0
+    error(0.00341381) D79 D83 D88 D96 L0
+    error(0.0459483) D79 D83 D88 L0
+    error(0.183981) D79 D83 D94
+    error(0.0101717) D79 D83 D96
+    error(0.00341381) D79 D84 D94
+    error(0.0643393) D79 D88
+    error(0.0428269) D79 D88 D94
+    error(0.0101717) D79 D89
+    error(0.00341381) D79 D89 D94
+    error(0.183981) D79 D90
+    error(0.0267809) D79 D90 D94
+    error(0.00680431) D79 L0
+    error(0.00341381) D80 D81
+    error(0.00341381) D80 D81 D82
+    error(0.00341381) D80 D81 D82 D84 D86 D87
+    error(0.00341381) D80 D81 D82 D84 D86 D90
+    error(0.0428269) D80 D81 D82 D84 D87
+    error(0.00341381) D80 D81 D82 D84 D97
+    error(0.0428269) D80 D81 D82 D86
+    error(0.00341381) D80 D81 D83 D84
+    error(0.0428269) D80 D81 D83 D86
+    error(0.00341381) D80 D81 D84
+    error(0.0791118) D80 D81 D84 D86
+    error(0.00341381) D80 D81 D84 D89
+    error(0.00680431) D80 D81 D84 D89 D95
+    error(0.00341381) D80 D81 D84 D89 D97
+    error(0.00341381) D80 D81 D84 D90 D95
+    error(0.00680431) D80 D81 D84 D90 D97
+    error(0.0267809) D80 D81 D84 D95
+    error(0.00680431) D80 D81 D86 D90 D94
+    error(0.00341381) D80 D81 D86 D90 D96
+    error(0.0267809) D80 D81 D86 D91
+    error(0.00341381) D80 D81 D86 D91 D94
+    error(0.00680431) D80 D81 D86 D91 D96
+    error(0.00341381) D80 D81 D86 D96 L0
+    error(0.00341381) D80 D81 D86 L0
+    error(0.0933834) D80 D82
+    error(0.00341381) D80 D82 D84 D86
+    error(0.00341381) D80 D82 D84 D86 D87
+    error(0.0428269) D80 D82 D84 D87
+    error(0.00341381) D80 D82 D84 D90 D97
+    error(0.0583288) D80 D82 D86
+    error(0.00341381) D80 D83
+    error(0.00341381) D80 D83 D84 D85
+    error(0.0583288) D80 D83 D85 L0
+    error(0.0267809) D80 D83 D94
+    error(0.15772) D80 D84
+    error(0.00341381) D80 D84 D85
+    error(0.0267809) D80 D84 D86 D90
+    error(0.0267809) D80 D84 D89
+    error(0.0267809) D80 D84 D89 D90
+    error(0.00341381) D80 D84 D89 D90 D94
+    error(0.0267809) D80 D84 D89 D90 D95
+    error(0.00341381) D80 D84 D89 D90 D97
+    error(0.00341381) D80 D84 D89 D95
+    error(0.00680431) D80 D84 D94
+    error(0.183981) D80 D84 D95
+    error(0.00680431) D80 D84 D97
+    error(0.0990136) D80 D85 L0
+    error(0.00680431) D80 D88
+    error(0.00341381) D80 D88 D94
+    error(0.00341381) D80 D88 D94 D96
+    error(0.00680431) D80 D90
+    error(0.00341381) D80 D90 D94 D96
+    error(0.183981) D80 D91
+    error(0.0267809) D80 D91 D94 D96
+    error(0.00341381) D80 D91 D96
+    error(0.0267809) D80 D94 D96 L0
+    error(0.0267809) D80 D96 L0
+    error(0.254178) D80 L0
+    error(0.265745) D81
+    error(0.150612) D81 D82
+    error(0.0877736) D81 D82 D86
+    error(0.00341381) D81 D82 D86 D87
+    error(0.00341381) D81 D82 D86 D90
+    error(0.00680431) D81 D82 D86 D90 D97
+    error(0.0428269) D81 D82 D86 D91
+    error(0.00341381) D81 D82 D86 D91 D97
+    error(0.0428269) D81 D82 D87
+    error(0.0267809) D81 D82 D87 D92
+    error(0.00341381) D81 D82 D87 D92 D95
+    error(0.00680431) D81 D82 D87 D92 D97
+    error(0.0428269) D81 D82 D87 D95
+    error(0.00341381) D81 D82 D87 D97
+    error(0.0267809) D81 D82 D97
+    error(0.00341381) D81 D84 D86
+    error(0.00341381) D81 D84 D86 D87
+    error(0.00341381) D81 D84 D86 D90
+    error(0.0583288) D81 D84 D87
+    error(0.128212) D81 D86
+    error(0.00341381) D81 D86 D87
+    error(0.00341381) D81 D86 D90 D91
+    error(0.0267809) D81 D86 D90 D91 D94
+    error(0.00341381) D81 D86 D90 D91 D96
+    error(0.0267809) D81 D86 D90 D91 D97
+    error(0.00341381) D81 D86 D91 D96 L0
+    error(0.00341381) D81 D86 D91 L0
+    error(0.0521273) D81 D86 D94
+    error(0.00680431) D81 D86 D96
+    error(0.183981) D81 D86 D97
+    error(0.0905881) D81 D87
+    error(0.00341381) D81 D87 D97
+    error(0.00680431) D81 D89
+    error(0.00341381) D81 D89 D95
+    error(0.00341381) D81 D89 D95 D97
+    error(0.0521273) D81 D90
+    error(0.0267809) D81 D90 D95 D97
+    error(0.183981) D81 D92
+    error(0.0267809) D81 D92 D95 D97
+    error(0.00341381) D81 D92 D97
+    error(0.00341381) D81 D95
+    error(0.00341381) D81 D95 D97
+    error(0.00341381) D82
+    error(0.0428269) D82 D86
+    error(0.00341381) D82 D86 D87
+    error(0.0267809) D82 D86 D97
+    error(0.0961596) D82 D87
+    error(0.0459483) D82 D87 D92
+    error(0.0267809) D82 D87 D92 D95
+    error(0.00341381) D82 D87 D92 D97
+    error(0.0300118) D82 D87 D92 D98
+    error(0.0643393) D82 D87 D95
+    error(0.00680431) D82 D87 D97
+    error(0.230378) D82 D87 D98
+    error(0.00680431) D82 D90
+    error(0.00341381) D82 D90 D97
+    error(0.0643393) D82 D91
+    error(0.0267809) D82 D91 D97
+    error(0.0101717) D82 D92
+    error(0.0101717) D82 D92 D97
+    error(0.230378) D82 D93
+    error(0.0300118) D82 D93 D97
+    error(0.00341381) D83 D84
+    error(0.00341381) D83 D84 D85 L0
+    error(0.0933834) D83 D85
+    error(0.0583288) D83 D86
+    error(0.0267809) D83 D88
+    error(0.00341381) D83 D88 D94
+    error(0.152998) D83 L0
+    error(0.00341381) D84 D85 L0
+    error(0.0933834) D84 D86
+    error(0.00341381) D84 D86 D87
+    error(0.0583288) D84 D87
+    error(0.00341381) D84 D90 D94
+    error(0.145792) D84 L0
+    error(0.117882) D85
+    error(0.180538) D86
+    error(0.00341381) D86 D87
+    error(0.00341381) D86 D90 D97
+    error(0.0877736) D87
+    error(0.00341381) D87 D92
+    error(0.00341381) D87 D92 D97
+    error(0.0762184) D88 D90
+    error(0.0762184) D88 D90 D94
+    error(0.00341381) D88 D94 D96 L0
+    error(0.0300118) D88 D94 D99
+    error(0.104471) D88 D94 L0
+    error(0.230378) D88 D99
+    error(0.150612) D88 L0
+    error(0.13336) D89
+    error(0.135863) D89 D90
+    error(0.00341381) D89 D90 D94
+    error(0.104471) D89 D90 D95
+    error(0.00341381) D89 D90 D95 D97
+    error(0.115255) D89 D95
+    error(0.0300118) D89 D95 D100
+    error(0.230378) D89 D100
+    error(0.143271) D90 D91
+    error(0.0300118) D90 D91 D94
+    error(0.00341381) D90 D91 D94 D96
+    error(0.0762184) D90 D91 D94 D97
+    error(0.00341381) D90 D91 D95
+    error(0.00341381) D90 D91 D95 D97
+    error(0.0300118) D90 D91 D97
+    error(0.0762184) D90 D92
+    error(0.0762184) D90 D92 D95 D97
+    error(0.0300118) D90 D94 D99
+    error(0.0267809) D90 D95 D97 D101
+    error(0.013516) D90 D95 D100
+    error(0.0101717) D90 D95 D101
+    error(0.00341381) D90 D97 D101
+    error(0.101655) D90 D99
+    error(0.013516) D90 D100
+    error(0.200908) D90 D101
+    error(0.0762184) D91 D93
+    error(0.0762184) D91 D93 D97
+    error(0.104471) D91 D94 D96 L0
+    error(0.013516) D91 D94 D99
+    error(0.013516) D91 D94 L0
+    error(0.00341381) D91 D95 D97 D101
+    error(0.00341381) D91 D95 D101
+    error(0.138349) D91 D96 L0
+    error(0.0101717) D91 D97 D101
+    error(0.0364077) D91 D97 D102
+    error(0.00680431) D91 D97 L0
+    error(0.013516) D91 D99
+    error(0.0101717) D91 D101
+    error(0.20295) D91 D102
+    error(0.260823) D91 L0
+    error(0.249012) D92
+    error(0.155367) D92 D93
+    error(0.00341381) D92 D93 D95
+    error(0.00341381) D92 D93 D95 D97
+    error(0.125656) D92 D93 D97
+    error(0.00680431) D92 D93 D98
+    error(0.0300118) D92 D95
+    error(0.00341381) D92 D95 D97
+    error(0.0267809) D92 D95 D97 D101
+    error(0.0762184) D92 D95 D98
+    error(0.013516) D92 D95 D100
+    error(0.0101717) D92 D95 D101
+    error(0.00341381) D92 D97 D101
+    error(0.140818) D92 D98
+    error(0.0364077) D92 D98 D103
+    error(0.013516) D92 D100
+    error(0.0761161) D92 D101
+    error(0.20295) D92 D103
+    error(0.00341381) D93 D95 D97 D101
+    error(0.00341381) D93 D95 D101
+    error(0.0101717) D93 D97 D101
+    error(0.0459483) D93 D97 D102
+    error(0.00680431) D93 D98 D103
+    error(0.0101717) D93 D101
+    error(0.0876741) D93 D102
+    error(0.0201364) D93 D103
+    error(0.246561) D93 D104
+    error(0.342449) D94
+    error(0.135863) D94 D96
+    error(0.0762184) D94 D97
+    error(0.0732021) D94 D99 L0
+    error(0.335799) D95
+    error(0.140818) D95 D97
+    error(0.0762184) D95 D98
+    error(0.0300118) D95 D100
+    error(0.0582222) D95 D100 D101
+    error(0.302291) D96
+    error(0.353922) D97
+    error(0.0582222) D97 D101 D102
+    error(0.00680431) D97 D102 L0
+    error(0.338072) D98
+    error(0.0988201) D98 D103
+    error(0.144023) D99 D101
+    error(0.187698) D99 L0
+    error(0.220392) D100
+    error(0.176736) D100 D101
+    error(0.176736) D101 D102
+    error(0.144023) D101 D103
+    error(0.144023) D102 D104
+    error(0.291102) D102 L0
+    error(0.312881) D103
+    error(0.189905) D103 D104
+    detector(0, 2, 0) D0
+    detector(0, 6, 0) D1
+    detector(2, 4, 0) D2
+    detector(4, 2, 0) D3
+    detector(4, 6, 0) D4
+    detector(6, 4, 0) D5
+    detector(2, 2, 0) D6
+    detector(2, 6, 0) D7
+    detector(4, 0, 0) D8
+    detector(4, 4, 0) D9
+    detector(4, 8, 0) D10
+    detector(0, 2, 1) D11
+    detector(0, 6, 1) D12
+    detector(2, 4, 1) D13
+    detector(4, 2, 1) D14
+    detector(4, 6, 1) D15
+    detector(6, 4, 1) D16
+    detector(2, 2, 1) D17
+    detector(2, 6, 1) D18
+    detector(4, 0, 1) D19
+    detector(4, 4, 1) D20
+    detector(4, 8, 1) D21
+    detector(0, 2, 2) D22
+    detector(0, 6, 2) D23
+    detector(2, 4, 2) D24
+    detector(4, 2, 2) D25
+    detector(4, 6, 2) D26
+    detector(6, 4, 2) D27
+    detector(2, 2, 2) D28
+    detector(2, 6, 2) D29
+    detector(4, 0, 2) D30
+    detector(4, 4, 2) D31
+    detector(4, 8, 2) D32
+    detector(0, 2, 3) D33
+    detector(0, 6, 3) D34
+    detector(2, 4, 3) D35
+    detector(4, 2, 3) D36
+    detector(4, 6, 3) D37
+    detector(6, 4, 3) D38
+    detector(2, 2, 3) D39
+    detector(2, 6, 3) D40
+    detector(4, 0, 3) D41
+    detector(4, 4, 3) D42
+    detector(4, 8, 3) D43
+    detector(0, 2, 4) D44
+    detector(0, 6, 4) D45
+    detector(2, 4, 4) D46
+    detector(4, 2, 4) D47
+    detector(4, 6, 4) D48
+    detector(6, 4, 4) D49
+    detector(2, 2, 4) D50
+    detector(2, 6, 4) D51
+    detector(4, 0, 4) D52
+    detector(4, 4, 4) D53
+    detector(4, 8, 4) D54
+    detector(0, 2, 5) D55
+    detector(0, 6, 5) D56
+    detector(2, 4, 5) D57
+    detector(4, 2, 5) D58
+    detector(4, 6, 5) D59
+    detector(6, 4, 5) D60
+    detector(2, 2, 5) D61
+    detector(2, 6, 5) D62
+    detector(4, 0, 5) D63
+    detector(4, 4, 5) D64
+    detector(4, 8, 5) D65
+    detector(0, 2, 6) D66
+    detector(0, 6, 6) D67
+    detector(2, 4, 6) D68
+    detector(4, 2, 6) D69
+    detector(4, 6, 6) D70
+    detector(6, 4, 6) D71
+    detector(2, 2, 6) D72
+    detector(2, 6, 6) D73
+    detector(4, 0, 6) D74
+    detector(4, 4, 6) D75
+    detector(4, 8, 6) D76
+    detector(0, 2, 7) D77
+    detector(0, 6, 7) D78
+    detector(2, 4, 7) D79
+    detector(4, 2, 7) D80
+    detector(4, 6, 7) D81
+    detector(6, 4, 7) D82
+    detector(2, 2, 7) D83
+    detector(2, 6, 7) D84
+    detector(4, 0, 7) D85
+    detector(4, 4, 7) D86
+    detector(4, 8, 7) D87
+    detector(0, 2, 8) D88
+    detector(0, 6, 8) D89
+    detector(2, 4, 8) D90
+    detector(4, 2, 8) D91
+    detector(4, 6, 8) D92
+    detector(6, 4, 8) D93
+    detector(2, 2, 8) D94
+    detector(2, 6, 8) D95
+    detector(4, 0, 8) D96
+    detector(4, 4, 8) D97
+    detector(4, 8, 8) D98
+    detector(0, 2, 9) D99
+    detector(0, 6, 9) D100
+    detector(2, 4, 9) D101
+    detector(4, 2, 9) D102
+    detector(4, 6, 9) D103
+    detector(6, 4, 9) D104
     """
     )
+    z_coords = [(2, 2), (2, 6), (4, 0), (4, 4), (4, 8)]
+    x_coords = [(0, 2), (0, 6), (2, 4), (4, 2), (4, 6), (6, 4)]
 
-    dem_z = stim.DetectorErrorModel(
-        """
-        error(0.00398802) D44
-    error(0.001998) D44 D47
-    error(0.001998) D44 D48
-    error(0.001998) D44 D73
-    error(0.001998) D44 L0
-    error(0.00398802) D45
-    error(0.001998) D45 D48
-    error(0.001998) D45 D49
-    error(0.001998) D45 D74
-    error(0.001998) D45 L0
-    error(0.00398802) D46
-    error(0.001998) D46 D49
-    error(0.001998) D46 D50
-    error(0.001998) D46 D75
-    error(0.001998) D46 L0
-    error(0.001998) D47
-    error(0.001998) D47 D51
-    error(0.001998) D47 D76
-    error(0.001998) D48
-    error(0.001998) D48 D51
-    error(0.001998) D48 D52
-    error(0.001998) D48 D77
-    error(0.001998) D49
-    error(0.001998) D49 D52
-    error(0.001998) D49 D53
-    error(0.001998) D49 D78
-    error(0.001998) D50
-    error(0.001998) D50 D53
-    error(0.001998) D50 D79
-    error(0.001998) D51
-    error(0.001998) D51 D54
-    error(0.001998) D51 D55
-    error(0.001998) D51 D80
-    error(0.001998) D52
-    error(0.001998) D52 D55
-    error(0.001998) D52 D56
-    error(0.001998) D52 D81
-    error(0.001998) D53
-    error(0.001998) D53 D56
-    error(0.001998) D53 D57
-    error(0.001998) D53 D82
-    error(0.00398802) D54
-    error(0.001998) D54 D83
-    error(0.00597008) D55
-    error(0.001998) D55 D84
-    error(0.00597008) D56
-    error(0.001998) D56 D85
-    error(0.00398802) D57
-    error(0.001998) D57 D86
-    error(0.001) D73 D76
-    error(0.001) D73 D77
-    error(0.001998) D73 D102
-    error(0.001998) D73 L0
-    error(0.001) D74 D77
-    error(0.001) D74 D78
-    error(0.001998) D74 D103
-    error(0.001998) D74 L0
-    error(0.001) D75 D78
-    error(0.001) D75 D79
-    error(0.001998) D75 D104
-    error(0.001998) D75 L0
-    error(0.001) D76 D80
-    error(0.001998) D76 D105
-    error(0.001) D77 D80
-    error(0.001) D77 D81
-    error(0.001998) D77 D106
-    error(0.001) D78 D81
-    error(0.001) D78 D82
-    error(0.001998) D78 D107
-    error(0.001) D79 D82
-    error(0.001998) D79 D108
-    error(0.001) D80 D83
-    error(0.001) D80 D84
-    error(0.001998) D80 D109
-    error(0.001) D81 D84
-    error(0.001) D81 D85
-    error(0.001998) D81 D110
-    error(0.001) D82 D85
-    error(0.001) D82 D86
-    error(0.001998) D82 D111
-    error(0.001) D83
-    error(0.001998) D83 D112
-    error(0.001998) D84
-    error(0.001998) D84 D113
-    error(0.001998) D85
-    error(0.001998) D85 D114
-    error(0.001) D86
-    error(0.001998) D86 D115
-    error(0.001998) D102
-    error(0.001998) D102 D105
-    error(0.001998) D102 D106
-    error(0.001998) D102 D131
-    error(0.001998) D102 L0
-    error(0.001998) D103
-    error(0.001998) D103 D106
-    error(0.001998) D103 D107
-    error(0.001998) D103 D132
-    error(0.001998) D103 L0
-    error(0.001998) D104
-    error(0.001998) D104 D107
-    error(0.001998) D104 D108
-    error(0.001998) D104 D133
-    error(0.001998) D104 L0
-    error(0.001998) D105 D109
-    error(0.001998) D105 D134
-    error(0.001998) D106 D109
-    error(0.001998) D106 D110
-    error(0.001998) D106 D135
-    error(0.001998) D107 D110
-    error(0.001998) D107 D111
-    error(0.001998) D107 D136
-    error(0.001998) D108 D111
-    error(0.001998) D108 D137
-    error(0.001998) D109 D112
-    error(0.001998) D109 D113
-    error(0.001998) D109 D138
-    error(0.001998) D110 D113
-    error(0.001998) D110 D114
-    error(0.001998) D110 D139
-    error(0.001998) D111 D114
-    error(0.001998) D111 D115
-    error(0.001998) D111 D140
-    error(0.001998) D112
-    error(0.001998) D112 D141
-    error(0.00398802) D113
-    error(0.001998) D113 D142
-    error(0.00398802) D114
-    error(0.001998) D114 D143
-    error(0.001998) D115
-    error(0.001998) D115 D144
-    error(0.00398802) D131
-    error(0.001) D131 D134
-    error(0.001) D131 D135
-    error(0.00398802) D132
-    error(0.001) D132 D135
-    error(0.001) D132 D136
-    error(0.00398802) D133
-    error(0.001) D133 D136
-    error(0.001) D133 D137
-    error(0.001998) D134
-    error(0.001) D134 D138
-    error(0.001998) D135
-    error(0.001) D135 D138
-    error(0.001) D135 D139
-    error(0.001998) D136
-    error(0.001) D136 D139
-    error(0.001) D136 D140
-    error(0.001998) D137
-    error(0.001) D137 D140
-    error(0.001998) D138
-    error(0.001) D138 D141
-    error(0.001) D138 D142
-    error(0.001998) D139
-    error(0.001) D139 D142
-    error(0.001) D139 D143
-    error(0.001998) D140
-    error(0.001) D140 D143
-    error(0.001) D140 D144
-    error(0.002994) D141
-    error(0.00398802) D142
-    error(0.00398802) D143
-    error(0.002994) D144
-    error(0.0476266) L0
-    detector D0
-    detector D1
-    detector D2
-    detector D3
-    detector D4
-    detector D5
-    detector D6
-    detector D7
-    detector D8
-    detector D9
-    detector D10
-    detector D11
-    detector D12
-    detector D13
-    detector D14
-    detector D15
-    detector D16
-    detector D17
-    detector D18
-    detector D19
-    detector D20
-    detector D21
-    detector D22
-    detector D23
-    detector D24
-    detector D25
-    detector D26
-    detector D27
-    detector D28
-    detector D29
-    detector D30
-    detector D31
-    detector D32
-    detector D33
-    detector D34
-    detector D35
-    detector D36
-    detector D37
-    detector D38
-    detector D39
-    detector D40
-    detector D41
-    detector D42
-    detector D43
-    detector D58
-    detector D59
-    detector D60
-    detector D61
-    detector D62
-    detector D63
-    detector D64
-    detector D65
-    detector D66
-    detector D67
-    detector D68
-    detector D69
-    detector D70
-    detector D71
-    detector D72
-    detector D87
-    detector D88
-    detector D89
-    detector D90
-    detector D91
-    detector D92
-    detector D93
-    detector D94
-    detector D95
-    detector D96
-    detector D97
-    detector D98
-    detector D99
-    detector D100
-    detector D101
-    detector D116
-    detector D117
-    detector D118
-    detector D119
-    detector D120
-    detector D121
-    detector D122
-    detector D123
-    detector D124
-    detector D125
-    detector D126
-    detector D127
-    detector D128
-    detector D129
-    detector D130
-    detector D145
-    detector D146
-    detector D147
-    detector D148
-    detector D149
-    detector D150
-    detector D151
-    detector D152
-    detector D153
-    detector D154
-    detector D155
-    detector D156
-    detector D157
-    detector D158
-    detector D159
-    """
-    )
-
-    dem_x = stim.DetectorErrorModel(
-        """
-        error(0.001) D0 D3
-    error(0.001998) D0 D29
-    error(0.001) D0 L0
-    error(0.001) D1 D3
-    error(0.001) D1 D4
-    error(0.001998) D1 D30
-    error(0.001) D2
-    error(0.001) D2 D4
-    error(0.001998) D2 D31
-    error(0.001) D3 D5
-    error(0.001) D3 D6
-    error(0.001998) D3 D32
-    error(0.001) D4 D6
-    error(0.001) D4 D7
-    error(0.001998) D4 D33
-    error(0.001) D5 D8
-    error(0.001998) D5 D34
-    error(0.001998) D5 L0
-    error(0.001) D6 D8
-    error(0.001) D6 D9
-    error(0.001998) D6 D35
-    error(0.001998) D7
-    error(0.001) D7 D9
-    error(0.001998) D7 D36
-    error(0.001) D8 D10
-    error(0.001) D8 D11
-    error(0.001998) D8 D37
-    error(0.001) D9 D11
-    error(0.001) D9 D12
-    error(0.001998) D9 D38
-    error(0.001) D10 D13
-    error(0.001998) D10 D39
-    error(0.001998) D10 L0
-    error(0.001) D11 D13
-    error(0.001) D11 D14
-    error(0.001998) D11 D40
-    error(0.001998) D12
-    error(0.001) D12 D14
-    error(0.001998) D12 D41
-    error(0.001998) D13 D42
-    error(0.001998) D14 D43
-    error(0.001998) D29 D32
-    error(0.001998) D29 D58
-    error(0.001998) D29 L0
-    error(0.001998) D30
-    error(0.002994) D30 D32
-    error(0.002994) D30 D33
-    error(0.001998) D30 D59
-    error(0.00498004) D31
-    error(0.002994) D31 D33
-    error(0.001998) D31 D60
-    error(0.001998) D32
-    error(0.001998) D32 D34
-    error(0.002994) D32 D35
-    error(0.001998) D32 D61
-    error(0.001998) D32 L0
-    error(0.001998) D33
-    error(0.002994) D33 D35
-    error(0.002994) D33 D36
-    error(0.001998) D33 D62
-    error(0.001998) D34
-    error(0.001) D34 D35
-    error(0.002994) D34 D37
-    error(0.001998) D34 D63
-    error(0.00597008) D34 L0
-    error(0.001998) D35
-    error(0.001998) D35 D37
-    error(0.002994) D35 D38
-    error(0.001998) D35 D64
-    error(0.00794422) D36
-    error(0.002994) D36 D38
-    error(0.001998) D36 D65
-    error(0.001998) D37
-    error(0.001) D37 D38
-    error(0.002994) D37 D39
-    error(0.002994) D37 D40
-    error(0.001998) D37 D66
-    error(0.001998) D38
-    error(0.001998) D38 D40
-    error(0.002994) D38 D41
-    error(0.001998) D38 D67
-    error(0.001998) D39
-    error(0.002994) D39 D42
-    error(0.001998) D39 D68
-    error(0.00597008) D39 L0
-    error(0.001998) D40
-    error(0.001) D40 D41
-    error(0.002994) D40 D42
-    error(0.002994) D40 D43
-    error(0.001998) D40 D69
-    error(0.00794422) D41
-    error(0.001998) D41 D43
-    error(0.001998) D41 D70
-    error(0.001998) D42
-    error(0.001998) D42 D71
-    error(0.002994) D43
-    error(0.001998) D43 D72
-    error(0.001) D58 D61
-    error(0.001998) D58 D87
-    error(0.001) D58 L0
-    error(0.001) D59 D61
-    error(0.001) D59 D62
-    error(0.001998) D59 D88
-    error(0.001) D60
-    error(0.001) D60 D62
-    error(0.001998) D60 D89
-    error(0.001) D61 D63
-    error(0.001) D61 D64
-    error(0.001998) D61 D90
-    error(0.001) D62 D64
-    error(0.001) D62 D65
-    error(0.001998) D62 D91
-    error(0.001) D63 D66
-    error(0.001998) D63 D92
-    error(0.001998) D63 L0
-    error(0.001) D64 D66
-    error(0.001) D64 D67
-    error(0.001998) D64 D93
-    error(0.001998) D65
-    error(0.001) D65 D67
-    error(0.001998) D65 D94
-    error(0.001) D66 D68
-    error(0.001) D66 D69
-    error(0.001998) D66 D95
-    error(0.001) D67 D69
-    error(0.001) D67 D70
-    error(0.001998) D67 D96
-    error(0.001) D68 D71
-    error(0.001998) D68 D97
-    error(0.001998) D68 L0
-    error(0.001) D69 D71
-    error(0.001) D69 D72
-    error(0.001998) D69 D98
-    error(0.001998) D70
-    error(0.001) D70 D72
-    error(0.001998) D70 D99
-    error(0.001998) D71 D100
-    error(0.001998) D72 D101
-    error(0.001998) D87 D90
-    error(0.001998) D87 D116
-    error(0.001998) D87 L0
-    error(0.001998) D88
-    error(0.002994) D88 D90
-    error(0.002994) D88 D91
-    error(0.001998) D88 D117
-    error(0.00498004) D89
-    error(0.002994) D89 D91
-    error(0.001998) D89 D118
-    error(0.00398802) D90
-    error(0.001998) D90 D92
-    error(0.002994) D90 D93
-    error(0.001998) D90 D119
-    error(0.001998) D91
-    error(0.002994) D91 D93
-    error(0.002994) D91 D94
-    error(0.001998) D91 D120
-    error(0.00398802) D92
-    error(0.001) D92 D93
-    error(0.002994) D92 D95
-    error(0.001998) D92 D121
-    error(0.00398802) D92 L0
-    error(0.001998) D93
-    error(0.001998) D93 D95
-    error(0.002994) D93 D96
-    error(0.001998) D93 D122
-    error(0.00794422) D94
-    error(0.002994) D94 D96
-    error(0.001998) D94 D123
-    error(0.001998) D95
-    error(0.001) D95 D96
-    error(0.002994) D95 D97
-    error(0.002994) D95 D98
-    error(0.001998) D95 D124
-    error(0.001998) D96
-    error(0.001998) D96 D98
-    error(0.002994) D96 D99
-    error(0.001998) D96 D125
-    error(0.00398802) D97
-    error(0.002994) D97 D100
-    error(0.001998) D97 D126
-    error(0.00398802) D97 L0
-    error(0.001998) D98
-    error(0.001) D98 D99
-    error(0.002994) D98 D100
-    error(0.002994) D98 D101
-    error(0.001998) D98 D127
-    error(0.00794422) D99
-    error(0.001998) D99 D101
-    error(0.001998) D99 D128
-    error(0.001998) D100
-    error(0.001998) D100 D129
-    error(0.002994) D101
-    error(0.001998) D101 D130
-    error(0.001) D116 D119
-    error(0.001998) D116 D145
-    error(0.001) D116 L0
-    error(0.001) D117 D119
-    error(0.001) D117 D120
-    error(0.001998) D117 D146
-    error(0.001) D118
-    error(0.001) D118 D120
-    error(0.001998) D118 D147
-    error(0.001) D119 D121
-    error(0.001) D119 D122
-    error(0.001998) D119 D148
-    error(0.001) D120 D122
-    error(0.001) D120 D123
-    error(0.001998) D120 D149
-    error(0.001) D121 D124
-    error(0.001998) D121 D150
-    error(0.001998) D121 L0
-    error(0.001) D122 D124
-    error(0.001) D122 D125
-    error(0.001998) D122 D151
-    error(0.001998) D123
-    error(0.001) D123 D125
-    error(0.001998) D123 D152
-    error(0.001) D124 D126
-    error(0.001) D124 D127
-    error(0.001998) D124 D153
-    error(0.001) D125 D127
-    error(0.001) D125 D128
-    error(0.001998) D125 D154
-    error(0.001) D126 D129
-    error(0.001998) D126 D155
-    error(0.001998) D126 L0
-    error(0.001) D127 D129
-    error(0.001) D127 D130
-    error(0.001998) D127 D156
-    error(0.001998) D128
-    error(0.001) D128 D130
-    error(0.001998) D128 D157
-    error(0.001998) D129 D158
-    error(0.001998) D130 D159
-    error(0.002994) D145 D148
-    error(0.002994) D145 L0
-    error(0.002994) D146 D148
-    error(0.002994) D146 D149
-    error(0.002994) D147
-    error(0.002994) D147 D149
-    error(0.002994) D148 D150
-    error(0.002994) D148 D151
-    error(0.002994) D149 D151
-    error(0.002994) D149 D152
-    error(0.002994) D150 D153
-    error(0.00597008) D150 L0
-    error(0.002994) D151 D153
-    error(0.002994) D151 D154
-    error(0.00597008) D152
-    error(0.002994) D152 D154
-    error(0.002994) D153 D155
-    error(0.002994) D153 D156
-    error(0.002994) D154 D156
-    error(0.002994) D154 D157
-    error(0.002994) D155 D158
-    error(0.00597008) D155 L0
-    error(0.002994) D156 D158
-    error(0.002994) D156 D159
-    error(0.00597008) D157
-    error(0.002994) D157 D159
-    error(0.0118689) L0
-    detector D15
-    detector D16
-    detector D17
-    detector D18
-    detector D19
-    detector D20
-    detector D21
-    detector D22
-    detector D23
-    detector D24
-    detector D25
-    detector D26
-    detector D27
-    detector D28
-    detector D44
-    detector D45
-    detector D46
-    detector D47
-    detector D48
-    detector D49
-    detector D50
-    detector D51
-    detector D52
-    detector D53
-    detector D54
-    detector D55
-    detector D56
-    detector D57
-    detector D73
-    detector D74
-    detector D75
-    detector D76
-    detector D77
-    detector D78
-    detector D79
-    detector D80
-    detector D81
-    detector D82
-    detector D83
-    detector D84
-    detector D85
-    detector D86
-    detector D102
-    detector D103
-    detector D104
-    detector D105
-    detector D106
-    detector D107
-    detector D108
-    detector D109
-    detector D110
-    detector D111
-    detector D112
-    detector D113
-    detector D114
-    detector D115
-    detector D131
-    detector D132
-    detector D133
-    detector D134
-    detector D135
-    detector D136
-    detector D137
-    detector D138
-    detector D139
-    detector D140
-    detector D141
-    detector D142
-    detector D143
-    detector D144
-    """
-    )
-
-    split_mwpm = SplitMatching(dem, dem_z=dem_z, dem_x=dem_x)
+    split_mwpm = SplitMatching(dem, z_coords=z_coords, x_coords=x_coords)
 
     syndrome = np.array(
         [
             False,
             False,
+            True,
             False,
             False,
+            True,
             False,
+            True,
             False,
             False,
+            True,
             False,
+            True,
             False,
+            True,
+            True,
+            True,
+            True,
+            True,
             False,
+            True,
             False,
             False,
             False,
+            True,
             False,
+            True,
+            True,
+            True,
             False,
+            True,
+            True,
             False,
             False,
+            True,
+            True,
+            True,
             False,
+            True,
             False,
             False,
+            True,
             False,
             False,
+            True,
+            True,
+            True,
             False,
+            True,
             False,
             False,
             False,
+            True,
+            True,
+            True,
+            True,
             False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
+            True,
             False,
             False,
             False,
@@ -1175,34 +1757,15 @@ def test_SplitMatching():
             False,
             False,
             False,
+            True,
+            False,
+            True,
+            True,
             False,
             False,
             True,
             False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
+            True,
             False,
             False,
             False,
@@ -1210,19 +1773,17 @@ def test_SplitMatching():
             False,
             False,
             False,
+            True,
+            False,
+            True,
+            True,
+            True,
             False,
             False,
             False,
             False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
-            False,
+            True,
+            True,
             False,
             False,
             False,
@@ -1231,8 +1792,9 @@ def test_SplitMatching():
             False,
             True,
             False,
-            False,
             True,
+            True,
+            False,
         ]
     )
 
