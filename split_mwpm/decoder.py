@@ -145,84 +145,18 @@ class SplitMatching:
             dets = get_detectors(fault)
             x_dets = np.array(list(self.x_dets.intersection(dets)), dtype=int)
             self.zedges_to_xdets[z_dets] = x_dets
-            dem_z.append(fault)
 
-        # Process hyperedges to update the probabilities of 'dem_z' and 'dem_x'
-        zedges_to_zind = {
-            frozenset(self.z_dets.intersection(get_detectors(err))): k
-            for k, err in enumerate(dem_z)
-        }
-        xedges_to_xind = {
-            frozenset(self.x_dets.intersection(get_detectors(err))): k
-            for k, err in enumerate(dem_x)
-        }
-        z_probs = [[] for _, _ in enumerate(dem_z)]
-        x_probs = [[] for _, _ in enumerate(dem_x)]
-
-        mwpm_dem_z = dem_z.copy()
-        mwpm_dem_x = dem_x.copy()
-        for d in range(self.num_dets):
-            instr = stim.DemInstruction("detector", args=[], targets=[stim.target_relative_detector_id(d)])
-            mwpm_dem_z.append(instr)
-            mwpm_dem_x.append(instr)
-        mwpm_z = Matching(mwpm_dem_z)
-        mwpm_x = Matching(mwpm_dem_x)
-
-        for error in hyperedges:
-            #print("hyperedge", error)
-            dets = get_detectors(error)
-            logs = get_logicals(error)
-            z_dets = np.array(list(self.z_dets.intersection(dets)), dtype=int)
-            x_dets = np.array(list(self.x_dets.intersection(dets)), dtype=int)
-
-            print("hyperedge")
-            print(len(dets), len(z_dets), len(x_dets))
-
-            syndrome_z = np.zeros(self.num_dets, dtype=bool)
-            syndrome_z[z_dets] ^= True
-            syndrome_x = np.zeros(self.num_dets, dtype=bool)
-            syndrome_x[x_dets] ^= True
-
-            z_edges = mwpm_z.decode_to_edges_array(syndrome_z)
-            for z_edge in z_edges:
-                z_edge = frozenset(i for i in z_edge if i != -1)
-                xdets_flipped = self.zedges_to_xdets[z_edge]
-                syndrome_x[xdets_flipped] ^= True
-
-                zind = zedges_to_zind[z_edge]
-                prob = dem_z[zind].args_copy()[0]
-                z_probs[zind].append(prob)
-                
-                #print(dem_z[zind])
-
-            x_edges = mwpm_x.decode_to_edges_array(syndrome_x)
-            for x_edge in x_edges:
-                x_edge = frozenset(i for i in x_edge if i != -1)
-
-                xind = xedges_to_xind[x_edge]
-                prob = dem_x[xind].args_copy()[0]
-                x_probs[xind].append(prob)
-
-                #print(dem_x[xind])
-
-        self.dem_z = stim.DetectorErrorModel()
-        self.dem_x = stim.DetectorErrorModel()
-        for probs, dem_instr in zip(z_probs, dem_z):
-            prob = dem_instr.args_copy()[0]
-            new_prob = xor_probs(prob, *probs)
-            new_instr = stim.DemInstruction(
-                "error", args=[new_prob], targets=dem_instr.targets_copy()
+            z_fault = stim.DemInstruction(
+                "error",
+                args=fault.args_copy(),
+                targets=list(map(stim.target_relative_detector_id, z_dets)),
             )
-            self.dem_z.append(new_instr)
-        for probs, dem_instr in zip(x_probs, dem_x):
-            prob = dem_instr.args_copy()[0]
-            new_prob = xor_probs(prob, *probs)
-            new_instr = stim.DemInstruction(
-                "error", args=[new_prob], targets=dem_instr.targets_copy()
-            )
-            self.dem_x.append(new_instr)
+            dem_z.append(z_fault)
 
         # Create variables used in self.decode
+        self.dem_x = dem_x
+        self.dem_z = dem_z
+
         self.zedges_to_logs = {}
         for error in self.dem_z:
             dets = get_detectors(error)
@@ -242,7 +176,9 @@ class SplitMatching:
             self.dem_z.append(instr)
             self.dem_x.append(instr)
         for d in range(self.num_dets):
-            instr = stim.DemInstruction("detector", args=[], targets=[stim.target_relative_detector_id(d)])
+            instr = stim.DemInstruction(
+                "detector", args=[], targets=[stim.target_relative_detector_id(d)]
+            )
             self.dem_z.append(instr)
             self.dem_x.append(instr)
 
