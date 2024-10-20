@@ -95,8 +95,6 @@ class SplitMatching:
         if len(self.x_dets.union(self.z_dets)) != self.num_dets:
             raise ValueError("Not all detectors have coordinates.")
 
-        print(len(self.x_dets), len(self.z_dets))
-
         # Process the errors
         dem_z = stim.DetectorErrorModel()
         dem_x = stim.DetectorErrorModel()
@@ -223,8 +221,6 @@ class SplitMatching:
                 "error", args=[new_prob], targets=dem_instr.targets_copy()
             )
             self.dem_x.append(new_instr)
-        self.dem_x = dem_x.copy()
-        self.dem_z = dem_z.copy()
 
         # Create variables used in self.decode
         self.zedges_to_logs = {}
