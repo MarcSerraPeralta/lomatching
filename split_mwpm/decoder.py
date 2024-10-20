@@ -1,227 +1,257 @@
+from collections.abc import Collection
+
 import stim
 import numpy as np
 from pymatching import Matching
 
-from qec_util.dem_instrs import (
-    get_detectors,
-    get_logicals,
-    sorted_dem_instr,
-    remove_detectors,
-)
-from qec_util.dems import get_flippable_detectors
+from qec_util.dem_instrs import get_detectors, get_logicals, xor_probs
 
 
 class SplitMatching:
-    """Decoder that decodes first the Z-type detectors, then removes the
-    output faults from the X-type detectors, and finally decodes the
-    X-type detectors.
+    """
+    Decoder for "matchable" codes and circuits involving logical gates
+    that keep the Z-type stabilizer generators unchanged, and whose
+    detectors are built in the "r" or "r-1" frames.
     """
 
     def __init__(
         self,
         dem: stim.DetectorErrorModel,
-        dem_z: stim.DetectorErrorModel,
-        dem_x: stim.DetectorErrorModel,
+        z_coords: Collection[Collection[int | float]],
+        x_coords: Collection[Collection[int | float]],
     ) -> None:
-        """Initializes the ``SplitMatching``.
+        """Initializes ``SplitMatching``.
 
         Parameters
         ----------
         dem
-            DEM containing all detectors.
-            It should not contain any gauge detectors to avoid problems.
-        dem_z
-            DEM containing only Z-type detectors that has been decomposed into edges.
-        dem_x
-            DEM containing only X-type detectors that has been decomposed into edges.
+            DEM containing coordinates for all detectors.
+        x_coords
+            List of the coordinates associated with all the X-type detectors
+            in ``dem``.
+        z_coords
+            List of the coordinates associated with all the Z-type detectors
+            in ``dem``.
         """
         if not isinstance(dem, stim.DetectorErrorModel):
             raise TypeError(
                 f"'dem' is not a stim.DetectorErrorModel, but a {type(dem)}."
             )
-        if not isinstance(dem_z, stim.DetectorErrorModel):
-            raise TypeError(
-                f"'dem_z' is not a stim.DetectorErrorModel, but a {type(dem_z)}."
-            )
-        if not isinstance(dem_x, stim.DetectorErrorModel):
-            raise TypeError(
-                f"'dem_x' is not a stim.DetectorErrorModel, but a {type(dem_x)}."
-            )
-        if (dem.num_detectors != dem_z.num_detectors) or (
-            dem.num_detectors != dem_x.num_detectors
-        ):
-            raise ValueError(
-                "'dem', 'dem_z', and 'dem_x' have a different number of detectors."
-            )
-
         self.dem = dem.flattened()
-        self.dem_z = dem_z.flattened()
-        self.dem_x = dem_x.flattened()
-
-        self.x_dets = np.array(list(get_flippable_detectors(dem_x)), dtype=int)
-        self.z_dets = np.array(list(get_flippable_detectors(dem_z)), dtype=int)
-        self.num_logs = dem.num_observables
         self.num_dets = dem.num_detectors
+        self.num_logs = dem.num_observables
 
-        if set(self.x_dets).intersection(self.z_dets) != set():
-            raise ValueError(
-                "'dem_x' and 'dem_z' have some detector(s) present in both of them."
+        if not isinstance(z_coords, Collection):
+            raise TypeError(
+                f"'z_coords' must be a collection, but a {type(z_coords)} was given."
             )
-
-        # remove stim.DemInstruction that leads to a logical flip but triggers no detectors
-        # DO THIS AT THE END????????????????????????????????????????????????????????????????????????
-        new_dem_z = stim.DetectorErrorModel()
-        for dem_instr in self.dem_z:
-            if (dem_instr.type == "error") and (len(get_detectors(dem_instr)) == 0):
-                continue
-            new_dem_z.append(dem_instr)
-        self.dem_z = new_dem_z
-
-        new_dem_x = stim.DetectorErrorModel()
-        for dem_instr in self.dem_x:
-            if (dem_instr.type == "error") and (len(get_detectors(dem_instr)) == 0):
-                continue
-            new_dem_x.append(dem_instr)
-        self.dem_x = new_dem_x
-
-        # create dictionary to index 'dem_z' given one of its stim.DemInstruction.
-        # It assumes that no instruction is repeated in the DEM
-        self.demz_to_index = {
-            _sorted_dem_instr_without_p(d): k for k, d in enumerate(self.dem_z)
-        }
-
-        # map errors from 'dem' to errors in 'dem_z'.
-        # Note that it ensures that both detectors and logicals are the same.
-        g_to_gz = {}
-        for k, dem_instr in enumerate(self.dem):
-            if dem_instr.type != "error":
-                continue
-
-            dem_instr = remove_detectors(dem_instr, dets=self.x_dets)
-            dem_instr = _sorted_dem_instr_without_p(dem_instr)
-
-            if len(get_detectors(dem_instr)) == 0:
-                g_to_gz[k] = None
-                continue
-
-            g_to_gz[k] = self.demz_to_index[dem_instr]
-
-        # reverse the map to have a function that maps errors in 'dem_z'
-        # to errors in 'dem'. This is used to do the XOR to the
-        # X-type defects based on the output errors in MWPM(dem_z)
-        gz_to_g_list = {kz: [] for kz, _ in enumerate(dem_z)}
-        for k, kz in g_to_gz.items():
-            if kz is None:
-                continue
-            gz_to_g_list[kz].append(k)
-
-        # there are cases in which a single error in 'dem_z' corresponds to
-        # multiple errors in 'dem'. In the "r" frame, this could be due to
-        # IncNoise + S_L + IncNoise,in which the first IncNoise propagates
-        # to X and Z errors which trigger the same Z-type detectors as just
-        # X errors in the second IncNoise. Therefore there are two error
-        # mechanisms that trigger the same Z-type detectors.
-        # The current approach to dealing with these errors is by keeping the
-        # one with largest probability, and in the case of equal probability
-        # choosing the one with fewer triggered detectors.
-        gz_to_g = {}
-        for kz, ks in gz_to_g_list.items():
-            if len(ks) == 0:
-                gz_to_g[kz] = None
-                continue
-            elif len(ks) == 1:
-                gz_to_g[kz] = ks[0]
-                continue
-
-            data = {}
-            for k in ks:
-                dem_instr = self.dem[k]
-                prob = dem_instr.args_copy()[0]
-                num_dets = len(get_detectors(dem_instr))
-                data[k] = (prob, num_dets)
-
-            ks = sorted(ks, key=lambda x: data[x][1])
-            ks = sorted(ks, key=lambda x: data[x][0], reverse=True)
-            gz_to_g[kz] = ks[0]
-
-        # prepare gz_to_g to be used directly with the output of
-        # Matching.decode_to_edges_array
-        self.zedges_to_xdets = {}  # {set: np.array}
-        self.zedges_to_logs = {}  # {set: np.array}
-        x_dets = get_flippable_detectors(self.dem_x)
-        for kz, k in gz_to_g.items():
-            if k is None:
-                continue
-
-            dets_z = get_detectors(self.dem_z[kz])
-            dets_z = frozenset(dets_z)  # to be hashable
-
-            dets = get_detectors(self.dem[k])
-            dets_x = set(dets).intersection(x_dets)
-            dets_x = np.array(list(dets_x), dtype=int)
-            self.zedges_to_xdets[dets_z] = dets_x
-
-            logs = get_logicals(self.dem_z[kz])
-            logs = np.array(list(logs), dtype=int)
-            self.zedges_to_logs[dets_z] = logs
-
-        # modify 'dem_x' to remove the hyperedges between Z- and X-type detectors.
-        remove_kx = []
-        for kz, k in gz_to_g.items():
-            if k is None:
-                continue
-            if set(get_detectors(self.dem[k])).intersection(x_dets) == set():
-                continue
-
-            # compute the respective dem_instr in 'dem_x'
-            dets = get_detectors(self.dem[k])
-            dets_z = get_detectors(self.dem_z[kz])
-            logs = get_logicals(self.dem[k])
-            logs_z = get_logicals(self.dem_z[kz])
-
-            dets_x = set(dets) - set(dets_z)
-            logs_x = set(logs).symmetric_difference(logs_z)
-            dets_x = list(map(stim.target_relative_detector_id, dets_x))
-            logs_x = list(
-                map(stim.target_logical_observable_id, set(logs) - set(logs_z))
+        if not isinstance(x_coords, Collection):
+            raise TypeError(
+                f"'x_coords' must be a collection, but a {type(x_coords)} was given."
             )
-            dem_instr = stim.DemInstruction("error", args=[1], targets=dets_x + logs_x)
+        if any(not isinstance(c, Collection) for c in z_coords):
+            raise TypeError("Elements in 'z_coords' must be collections.")
+        if any(not isinstance(c, Collection) for c in x_coords):
+            raise TypeError("Elements in 'x_coords' must be collections.")
+        if any(any(not isinstance(d, (int, float)) for d in c) for c in z_coords):
+            raise TypeError("The elements in 'z_coords' must contain ints or floats.")
+        if any(any(not isinstance(d, (int, float)) for d in c) for c in x_coords):
+            raise TypeError("The elements in 'x_coords' must contain ints or floats.")
+        self.z_coords = set(tuple(map(float, c)) for c in z_coords)
+        self.x_coords = set(tuple(map(float, c)) for c in x_coords)
 
-            # find kx s.t. dem_x[kx] = dem_instr
-            kx = None
-            for kx_, instr_x in enumerate(self.dem_x):
-                if _sorted_dem_instr_without_p(instr_x) == _sorted_dem_instr_without_p(
-                    dem_instr
-                ):
-                    kx = kx_
-                    break
-            if kx is None:
-                raise ValueError(f"{dem_instr} is not in 'dem_x'.")
+        if self.z_coords.intersection(self.x_coords) != set():
+            raise ValueError("'z_coords' and 'x_coords' have common elements.")
 
-            # in the case that the instruction is already present in 'dem',
-            # it should not be deleted from 'dem_x' because there exists an
-            # error mechanism that has the same pattern.
-            if _is_instr_without_p_in_dem(self.dem_x[kx], self.dem):
-                continue
-
-            remove_kx.append(kx)
-
-        self.modified_dem_x = stim.DetectorErrorModel()
-        for kx, dem_instr in enumerate(self.dem_x):
-            if kx in remove_kx:
-                for d in get_detectors(dem_instr):
-                    d_target = stim.target_relative_detector_id(d)
-                    new_instr = stim.DemInstruction(
-                        "detector", args=[], targets=[d_target]
+        # Get coordinates of all detectors
+        errors = []
+        dets_to_round = {}
+        self.x_dets = set()
+        self.z_dets = set()
+        for dem_instr in self.dem:
+            if dem_instr.type == "error":
+                errors.append(dem_instr)
+            elif dem_instr.type == "detector":
+                det = dem_instr.targets_copy()[0].val
+                targets = tuple(dem_instr.args_copy())
+                if len(targets) == 0:
+                    raise ValueError(
+                        f"All detectors must have coordinates:\n{dem_instr}"
                     )
-                    self.modified_dem_x.append(new_instr)
+                num_round = targets[-1]
+                coords = targets[:-1]
+                dets_to_round[det] = num_round
+                if coords in self.z_coords:
+                    self.z_dets.add(det)
+                elif coords in self.x_coords:
+                    self.x_dets.add(det)
+                else:
+                    raise ValueError(
+                        f"{det} has coorindates not present in 'z_coords' or 'x_coords'."
+                    )
+            else:
+                raise TypeError(f"Unknown {dem_instr} in 'dem'.")
+
+        if len(self.x_dets.union(self.z_dets)) != self.num_dets:
+            raise ValueError("Not all detectors have coordinates.")
+
+        print(len(self.x_dets), len(self.z_dets))
+
+        # Process the errors
+        dem_z = stim.DetectorErrorModel()
+        dem_x = stim.DetectorErrorModel()
+        self.zedges_to_xdets = {}
+        hyperedges = []
+        meas_faults = {}
+        for error in errors:
+            dets = get_detectors(error)
+            logs = get_logicals(error)
+            z_dets = self.z_dets.intersection(dets)
+            x_dets = self.x_dets.intersection(dets)
+
+            if len(x_dets) <= 2 and len(z_dets) == 0:
+                # Pauli or measurement errors.
+                dem_x.append(error)
+                continue
+            if (
+                len(z_dets) == 2
+                and abs(dets_to_round[list(z_dets)[0]] - dets_to_round[list(z_dets)[1]])
+                == 1
+                and len(logs) == 0
+            ):
+                # Possible Z-type measurement error.
+                z_dets = frozenset(z_dets)
+                if z_dets not in meas_faults:
+                    meas_faults[z_dets] = [error]
+                else:
+                    meas_faults[z_dets].append(error)
+                continue
+            if len(z_dets) <= 2 and len(x_dets) == 0:
+                # As it is not a Z-type measurement error, it can only be a Pauli error.
+                dem_z.append(error)
+                z_dets = frozenset(z_dets)
+                self.zedges_to_xdets[z_dets] = np.array([], dtype=int)
                 continue
 
-            self.modified_dem_x.append(dem_instr)
+            hyperedges.append(error)
 
-        # prepare MWPM decoders
+        # Process the Z-type measurement errors
+        for z_dets, faults in meas_faults.items():
+            # pick the most probable one, and in case of tie pick the
+            # one triggering less detectors
+            faults = sorted(faults, key=lambda x: len(x.targets_copy()))
+            faults = sorted(faults, key=lambda x: x.args_copy()[0], reverse=True)
+            fault = faults[0]
+            hyperedges += faults[1:]
+
+            dets = get_detectors(fault)
+            x_dets = np.array(list(self.x_dets.intersection(dets)), dtype=int)
+            self.zedges_to_xdets[z_dets] = x_dets
+            dem_z.append(fault)
+
+        # Process hyperedges to update the probabilities of 'dem_z' and 'dem_x'
+        zedges_to_zind = {
+            frozenset(self.z_dets.intersection(get_detectors(err))): k
+            for k, err in enumerate(dem_z)
+        }
+        xedges_to_xind = {
+            frozenset(self.x_dets.intersection(get_detectors(err))): k
+            for k, err in enumerate(dem_x)
+        }
+        z_probs = [[] for _, _ in enumerate(dem_z)]
+        x_probs = [[] for _, _ in enumerate(dem_x)]
+
+        mwpm_dem_z = dem_z.copy()
+        mwpm_dem_x = dem_x.copy()
+        for d in range(self.num_dets):
+            instr = stim.DemInstruction("detector", args=[], targets=[stim.target_relative_detector_id(d)])
+            mwpm_dem_z.append(instr)
+            mwpm_dem_x.append(instr)
+        mwpm_z = Matching(mwpm_dem_z)
+        mwpm_x = Matching(mwpm_dem_x)
+
+        for error in hyperedges:
+            #print("hyperedge", error)
+            dets = get_detectors(error)
+            logs = get_logicals(error)
+            z_dets = np.array(list(self.z_dets.intersection(dets)), dtype=int)
+            x_dets = np.array(list(self.x_dets.intersection(dets)), dtype=int)
+
+            print("hyperedge")
+            print(len(dets), len(z_dets), len(x_dets))
+
+            syndrome_z = np.zeros(self.num_dets, dtype=bool)
+            syndrome_z[z_dets] ^= True
+            syndrome_x = np.zeros(self.num_dets, dtype=bool)
+            syndrome_x[x_dets] ^= True
+
+            z_edges = mwpm_z.decode_to_edges_array(syndrome_z)
+            for z_edge in z_edges:
+                z_edge = frozenset(i for i in z_edge if i != -1)
+                xdets_flipped = self.zedges_to_xdets[z_edge]
+                syndrome_x[xdets_flipped] ^= True
+
+                zind = zedges_to_zind[z_edge]
+                prob = dem_z[zind].args_copy()[0]
+                z_probs[zind].append(prob)
+                
+                #print(dem_z[zind])
+
+            x_edges = mwpm_x.decode_to_edges_array(syndrome_x)
+            for x_edge in x_edges:
+                x_edge = frozenset(i for i in x_edge if i != -1)
+
+                xind = xedges_to_xind[x_edge]
+                prob = dem_x[xind].args_copy()[0]
+                x_probs[xind].append(prob)
+
+                #print(dem_x[xind])
+
+        self.dem_z = stim.DetectorErrorModel()
+        self.dem_x = stim.DetectorErrorModel()
+        for probs, dem_instr in zip(z_probs, dem_z):
+            prob = dem_instr.args_copy()[0]
+            new_prob = xor_probs(prob, *probs)
+            new_instr = stim.DemInstruction(
+                "error", args=[new_prob], targets=dem_instr.targets_copy()
+            )
+            self.dem_z.append(new_instr)
+        for probs, dem_instr in zip(x_probs, dem_x):
+            prob = dem_instr.args_copy()[0]
+            new_prob = xor_probs(prob, *probs)
+            new_instr = stim.DemInstruction(
+                "error", args=[new_prob], targets=dem_instr.targets_copy()
+            )
+            self.dem_x.append(new_instr)
+        self.dem_x = dem_x.copy()
+        self.dem_z = dem_z.copy()
+
+        # Create variables used in self.decode
+        self.zedges_to_logs = {}
+        for error in self.dem_z:
+            dets = get_detectors(error)
+            logs = get_logicals(error)
+            z_dets = frozenset(self.z_dets.intersection(dets))
+            self.zedges_to_logs[z_dets] = np.array(list(logs), dtype=int)
+
+        self.z_dets = np.array(list(self.z_dets), dtype=int)
+        self.x_dets = np.array(list(self.x_dets), dtype=int)
+
+        for l in range(self.num_logs):
+            instr = stim.DemInstruction(
+                "logical_observable",
+                args=[],
+                targets=[stim.target_logical_observable_id(l)],
+            )
+            self.dem_z.append(instr)
+            self.dem_x.append(instr)
+        for d in range(self.num_dets):
+            instr = stim.DemInstruction("detector", args=[], targets=[stim.target_relative_detector_id(d)])
+            self.dem_z.append(instr)
+            self.dem_x.append(instr)
+
         self.mwpm_z = Matching(self.dem_z)
-        self.mwpm_x = Matching(self.modified_dem_x)
+        self.mwpm_x = Matching(self.dem_x)
 
         return
 
@@ -252,27 +282,3 @@ class SplitMatching:
         log_flips ^= self.mwpm_x.decode(syndrome_x).astype(bool)
 
         return log_flips
-
-
-def _sorted_dem_instr_without_p(dem_instr: stim.DemInstruction) -> stim.DemInstruction:
-    """Returns the same output as ``sorted_dem_instr`` but with the associated
-    probability set to 1, to avoid problems between DEMs that have different
-    probabilities due to combination of errors.
-    """
-    output = sorted_dem_instr(dem_instr)
-    return stim.DemInstruction("error", args=[1], targets=output.targets_copy())
-
-
-def _is_instr_without_p_in_dem(
-    dem_instr: stim.DemInstruction, dem: stim.DetectorErrorModel
-) -> bool:
-    dem_instr = _sorted_dem_instr_without_p(dem_instr)
-
-    for other_instr in dem.flattened():
-        if other_instr.type != "error":
-            continue
-
-        if dem_instr == _sorted_dem_instr_without_p(other_instr):
-            return True
-
-    return False
