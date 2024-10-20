@@ -280,3 +280,10 @@ class SplitMatching:
         log_flips ^= self.mwpm_x.decode(syndrome_x).astype(bool)
 
         return log_flips
+
+    def decode_batch(self, syndromes: np.ndarray) -> np.ndarray:
+        num_shots, _ = syndromes.shape
+        log_flips = np.zeros((num_shots, self.num_logs), dtype=bool)
+        for k, syndrome in enumerate(syndromes):
+            log_flips[k] = self.decode(syndrome)
+        return log_flips
