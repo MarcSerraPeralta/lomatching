@@ -1,11 +1,62 @@
+import pytest
 import numpy as np
 import stim
 
 from split_mwpm.greedy_algorithm import (
     get_ops,
     get_time_hypergraph,
-    get_tracks,
+    get_track_ordering,
+    greedy_algorithm,
+    check_ordering,
 )
+
+
+def test_greedy_algorithm():
+    circuit = stim.Circuit(
+        """
+        R 0
+        TICK
+        TICK
+        M 0
+        R 1
+        TICK
+        X 1
+        R 0
+        TICK
+        CNOT 0 1
+        TICK
+        CNOT 1 0
+        TICK
+        H 0 1
+        TICK
+        M 1
+        TICK
+        S 0
+        TICK
+        M 0 
+        """
+    )
+
+    tracks = greedy_algorithm(circuit, r_start=0, detector_frame="post-gate")
+
+    expected_tracks = np.array(
+        [
+            [1, 1, 0, 0],
+            [1, 1, 0, 0],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [2, 1, 1, 2],
+            [2, 1, 1, 2],
+            [1, 2, 2, 1],
+            [1, 2, 2, 1],
+            [1, 1, 0, 0],
+            [1, 1, 0, 0],
+        ]
+    )
+
+    assert tracks.shape == expected_tracks.shape
+    assert (tracks == expected_tracks).all()
+    return
 
 
 def test_get_ops():
@@ -117,7 +168,7 @@ def test_get_time_hypergraph():
     return
 
 
-def test_get_tracks():
+def test_get_track_ordering():
     # this comes from the other tests with defect_frame="post-gate"
     edges = np.array(
         [
@@ -135,7 +186,7 @@ def test_get_tracks():
         ]
     )
 
-    tracks = get_tracks(edges, r_start=1000)
+    tracks = get_track_ordering(edges, r_start=1000)
 
     expected_tracks = np.array(
         [
@@ -155,7 +206,7 @@ def test_get_tracks():
     assert tracks.shape == expected_tracks.shape
     assert (tracks == expected_tracks).all()
 
-    tracks = get_tracks(edges)
+    tracks = get_track_ordering(edges)
 
     expected_tracks = np.array(
         [
@@ -174,5 +225,59 @@ def test_get_tracks():
 
     assert tracks.shape == expected_tracks.shape
     assert (tracks == expected_tracks).all()
+
+    return
+
+
+def test_check_ordering():
+    edges = np.array(
+        [
+            [[0, 0, -1], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, -1], [0, 0, 0]],
+            [[0, -1, -1], [0, 0, 0], [3, 0, 0], [4, 0, 0]],
+            [[1, 3, 1], [2, 0, 0], [3, 0, 0], [4, 2, 1]],
+            [[1, 0, 0], [2, 4, 1], [3, 1, 1], [4, 0, 0]],
+            [[2, 0, 0], [1, 0, 0], [4, 0, 0], [3, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0]],
+            [[1, 0, 0], [2, 1, 1], [0, -1, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[0, -1, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+        ]
+    )
+    correct_tracks = np.array(
+        [
+            [1, 1, 0, 0],
+            [1, 1, 0, 0],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [2, 1, 1, 2],
+            [2, 1, 1, 2],
+            [1, 2, 2, 1],
+            [1, 2, 2, 1],
+            [1, 1, 0, 0],
+            [1, 1, 0, 0],
+        ]
+    )
+
+    check_ordering(correct_tracks, edges)
+
+    bad_tracks = np.array(
+        [
+            [1, 1, 0, 0],
+            [1, 1, 0, 0],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [1, 1, 2, 2],
+            [2, 1, 1, 2],
+            [1, 2, 2, 1],
+            [1, 2, 2, 1],
+            [1, 1, 0, 0],
+            [1, 1, 0, 0],
+        ]
+    )
+
+    with pytest.raises(ValueError):
+        check_ordering(bad_tracks, edges)
 
     return
