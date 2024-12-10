@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 requires-python = ">=3.10"
 name = "split-mwpm"
-description = "Decoder for the transversal logical S gate in surface codes based on MWPM." 
+description = "Decoder for transversal logical gates in surface codes based on MWPM." 
 version = "0.1.0"
 authors = [
     { name = "Marc Serra Peralta", email = "marcserraperalta@gmail.com" }
@@ -28,4 +28,4 @@ include = ["split_mwpm", "split_mwpm.*"]  # package names should match these glo
 namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project.optional-dependencies]
-dev = ["pip-tools", "pytest", "black", "pytest-black"]
+dev = ["pip-tools", "pytest", "black", "pytest-black", "flake8", "flake8-print", "pytest-flake8"]
