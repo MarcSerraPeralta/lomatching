@@ -161,21 +161,19 @@ def standardize_circuit(circuit: stim.Circuit) -> np.ndarray:
     return ops
 
 
-def get_time_hypergraph_from_circuit(
-    circuit: stim.Circuit,
+def get_time_hypergraph_from_ops(
+    ops: np.ndarray,
     detector_frame: str,
 ) -> np.ndarray:
     """Runs an array describing the time edges between nodes.
 
     Parameters
     ----------
-    circuit
-        Logical circuit with only MZ, RZ, MX, RX, S, H, X, Z, Y, I, CNOT gates.
-        Circuit must start with all qubits being reset and end with all qubits
-        being measured. TICKs represent QEC cycles.
-        Conditional gates based on outcomes are not allowed.
-        Qubits can only perform a single operation inbetween QEC cycles.
-        The next operation of a measurement must be a reset.
+    ops
+        Array of size ``(num_rounds + 1, num_qubits)``
+        representing the gates performed in each qubit between QEC cycles.
+        This array can be generated from a ``stim.Circuit`` using
+        ``standardize_circuit``.
     detector_frame
         Detector frame that is used when building the detectors.
         It must be either ``"pre-gate"`` or ``"post-gate"``.
@@ -183,9 +181,11 @@ def get_time_hypergraph_from_circuit(
     Returns
     -------
     edges
-        Numpy array of size ``(circuit.num_ticks + 1, 2*circuit.num_qubits, 6)``
+        Numpy array of size ``(num_rounds + 2, 2 * num_qubits, 3)``
         representing the time (hyper)edges. See Notes for more information
         about this format.
+        The index ``2*q`` represents the X stabilizers of qubit with index ``q``
+        and ``2*q+1`` the Z ones.
 
     Notes
     -----
@@ -193,20 +193,95 @@ def get_time_hypergraph_from_circuit(
     if the time boundary ones are compressed as follows:
     Ni-A B-Nj
     with Ni&Nj representing decoding sections and A&B representing the type and presence
-    of time boundary node, i.e. ``0`` for no boundary, ``1`` for closed
-    time boundary, and ``-1`` for open time boundary. It is not needed to store
-    if the boundary is open or closed for the greedy algorithm, but it is useful
-    for checking if the condition for fault tolerance is satisfied.
+    of time boundary node, i.e. ``0`` for no boundary, ``-1`` for open
+    time boundary. It is not needed to store the type of boundary for the greedy algorithm,
+    but it is useful for checking if the condition for fault tolerance is satisfied.
     If (hyper)edges have only support on time consecutive nodes, then a vector
-    of lenght 6 can encode all options, with:
-    Time edge = [Ni, 0, Ni, 1, 0, 0]
-    Time weight-3 hyperedge = [Ni, 0, Ni, 1, Nk, Rk]
-    Time-boundary edge = [Ni, 0, 0, 0, A, B]
-    Inactive qubit = [0, 0, 0, 0, 0, 0]
-    with Ni being the initial decoding section (:math:`N_i \\in [1,...,2N_q]),
-    (Nk, Rk) specifying the third node in the hyperedge (with Rk being the
-    time position of Nk relative to Ni, i.e. Rk = 0 or 1).
+    of length 3 can encode all options, with:
+    Time edge = [Ni, 0, Nj, 1, 0, 0] = [Nj, 0, 0]
+    Time weight-3 hyperedge = [Ni, 0, Nj, 1, Nk, Rk] = [Nj, Nk, Rk]
+    Time-boundary edge = [Ni, 0, 0, 0, A, B] = [0, A, B]
+    Inactive qubit = [Ni, 0, 0, 0, 0, 0] = [0, 0, 0]
+    with Ni being the node in round r when considering rounds r and r+1,
+    with Ni being a decoding section (:math:`N_i \\in [1,...,2N_q]),
+    and Ri being the time position of Ni relative to the round of the gate.
     Note that the general structure of the vector is
-    [Ni, Ri, Nj, Rj, Nk, Rk] except for the boundary edges.
+    [Nj, Nk, Rk] except for the boundary edges which have the form
+    [0, A, B] because Nj >= 1.
     """
-    return
+    if not isinstance(ops, np.ndarray):
+        raise TypeError(f"'ops' must be a np.ndarray, but {type(ops)} was given.")
+    if detector_frame not in ["pre-gate", "post-gate"]:
+        raise ValueError(
+            "'detector_frame' must be either 'pre-gate' or 'post-gate', "
+            f"but {detector_frame} was given."
+        )
+
+    num_rounds, num_qubits = ops.shape[0] - 1, ops.shape[1]
+    edges = np.zeros((num_rounds + 2, 2 * num_qubits, 3), dtype=int)
+
+    for r, curr_ops in enumerate(ops):
+        for q, curr_op in enumerate(curr_ops):
+            shift = 0 if detector_frame == "post-gate" else 1
+            if curr_op == "":
+                continue
+            elif curr_op in ["R", "RZ"]:
+                if shift:
+                    edges[r][2 * q][2] = -1
+                    edges[r + 1][2 * q][0] = 2 * q + 1
+                    edges[r + 1][2 * q + 1][0] = 2 * q + 2
+                else:
+                    edges[r][2 * q][2] = -1
+            elif curr_op == "RX":
+                if shift:
+                    edges[r][2 * q + 1][2] = -1
+                    edges[r + 1][2 * q][0] = 2 * q + 1
+                    edges[r + 1][2 * q + 1][0] = 2 * q + 2
+                else:
+                    edges[r][2 * q + 1][2] = -1
+            elif curr_op in ["M", "MZ"]:
+                if shift:
+                    edges[r + 1][2 * q][1] = -1
+                else:
+                    edges[r + 1][2 * q][1] = -1
+                    edges[r][2 * q][0] = 2 * q + 1
+                    edges[r][2 * q + 1][0] = 2 * q + 2
+            elif curr_op == "MX":
+                if shift:
+                    edges[r + 1][2 * q + 1][1] = -1
+                else:
+                    edges[r + 1][2 * q + 1][1] = -1
+                    edges[r][2 * q][0] = 2 * q + 1
+                    edges[r][2 * q + 1][0] = 2 * q + 2
+            elif curr_op in ["I", "X", "Y", "Z"]:
+                edges[r + shift][2 * q][0] = 2 * q + 1
+                edges[r + shift][2 * q + 1][0] = 2 * q + 2
+            elif curr_op == "H":
+                edges[r + shift][2 * q][0] = 2 * q + 2
+                edges[r + shift][2 * q + 1][0] = 2 * q + 1
+            elif curr_op == "S":
+                edges[r + shift][2 * q][0] = 2 * q + 1
+                edges[r + shift][2 * q + 1][0] = 2 * q + 2
+                edges[r + shift][2 * q + 1][1] = 2 * q + 1
+                edges[r + shift][2 * q + 1][2] = 1 - shift
+            elif "CX" in curr_op:
+                control = int(curr_op[2:].split("-")[0])
+                target = int(curr_op[2:].split("-")[1])
+                if q == control:
+                    edges[r + shift][2 * q + 1][0] = 2 * q + 2
+                    edges[r + shift][2 * q][0] = 2 * q + 1
+                    edges[r + shift][2 * q][1] = 2 * target + 1
+                    edges[r + shift][2 * q][2] = 1 - shift
+                elif q == target:
+                    edges[r + shift][2 * q][0] = 2 * q + 1
+                    edges[r + shift][2 * q + 1][0] = 2 * q + 2
+                    edges[r + shift][2 * q + 1][1] = 2 * control + 2
+                    edges[r + shift][2 * q + 1][2] = 1 - shift
+                else:
+                    raise ValueError(
+                        f"'CX' gate in qubit {q} does not contain this qubit (i.e. {curr_op})."
+                    )
+            else:
+                raise ValueError(f"{curr_op} is not a valid gate.")
+
+    return edges

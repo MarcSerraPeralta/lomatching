@@ -1,7 +1,10 @@
 import numpy as np
 import stim
 
-from split_mwpm.greedy_algorithm import standardize_circuit
+from split_mwpm.greedy_algorithm import (
+    standardize_circuit,
+    get_time_hypergraph_from_ops,
+)
 
 
 def test_standardize_circuit():
@@ -48,5 +51,66 @@ def test_standardize_circuit():
 
     assert ops.shape == expected_ops.shape
     assert (ops == expected_ops).all()
+
+    return
+
+
+def test_get_time_hypergraph_from_ops():
+    ops = np.array(
+        [
+            ["R", ""],
+            ["I", ""],
+            ["M", "R"],
+            ["R", "X"],
+            ["CX0-1", "CX0-1"],
+            ["CX1-0", "CX1-0"],
+            ["H", "H"],
+            ["I", "M"],
+            ["S", ""],
+            ["M", ""],
+        ]
+    )
+
+    edges = get_time_hypergraph_from_ops(ops, detector_frame="post-gate")
+
+    expected_edges = np.array(
+        [
+            [[0, 0, -1], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, -1], [0, 0, 0]],
+            [[0, -1, -1], [0, 0, 0], [3, 0, 0], [4, 0, 0]],
+            [[1, 3, 1], [2, 0, 0], [3, 0, 0], [4, 2, 1]],
+            [[1, 0, 0], [2, 4, 1], [3, 1, 1], [4, 0, 0]],
+            [[2, 0, 0], [1, 0, 0], [4, 0, 0], [3, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0]],
+            [[1, 0, 0], [2, 1, 1], [0, -1, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[0, -1, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+        ]
+    )
+
+    assert edges.shape == expected_edges.shape
+    assert (edges == expected_edges).all()
+
+    edges = get_time_hypergraph_from_ops(ops, detector_frame="pre-gate")
+
+    expected_edges = np.array(
+        [
+            [[0, 0, -1], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, -1], [0, 0, 0]],
+            [[0, -1, -1], [0, 0, 0], [3, 0, 0], [4, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0]],
+            [[1, 3, 0], [2, 0, 0], [3, 0, 0], [4, 2, 0]],
+            [[1, 0, 0], [2, 4, 0], [3, 1, 0], [4, 0, 0]],
+            [[2, 0, 0], [1, 0, 0], [4, 0, 0], [3, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, -1, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 1, 0], [0, 0, 0], [0, 0, 0]],
+            [[0, -1, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+        ]
+    )
+
+    assert edges.shape == expected_edges.shape
+    assert (edges == expected_edges).all()
 
     return
