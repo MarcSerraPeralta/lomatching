@@ -93,7 +93,7 @@ def get_ops(circuit: stim.Circuit) -> np.ndarray:
                 active_qubits[qubits] = True
 
             for i, q in enumerate(qubits):
-                if name == "CX":
+                if "CX" in name:
                     name = (
                         f"CX{q}-{qubits[i+1]}" if i % 2 == 0 else f"CX{qubits[i-1]}-{q}"
                     )
