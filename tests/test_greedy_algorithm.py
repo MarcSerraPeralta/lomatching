@@ -2,13 +2,13 @@ import numpy as np
 import stim
 
 from split_mwpm.greedy_algorithm import (
-    standardize_circuit,
-    get_time_hypergraph_from_ops,
+    get_ops,
+    get_time_hypergraph,
     get_tracks,
 )
 
 
-def test_standardize_circuit():
+def test_get_ops():
     circuit = stim.Circuit(
         """
         R 0
@@ -33,7 +33,7 @@ def test_standardize_circuit():
         """
     )
 
-    ops = standardize_circuit(circuit)
+    ops = get_ops(circuit)
 
     expected_ops = np.array(
         [
@@ -56,7 +56,7 @@ def test_standardize_circuit():
     return
 
 
-def test_get_time_hypergraph_from_ops():
+def test_get_time_hypergraph():
     ops = np.array(
         [
             ["R", ""],
@@ -72,7 +72,7 @@ def test_get_time_hypergraph_from_ops():
         ]
     )
 
-    edges = get_time_hypergraph_from_ops(ops, detector_frame="post-gate")
+    edges = get_time_hypergraph(ops, detector_frame="post-gate")
 
     expected_edges = np.array(
         [
@@ -93,7 +93,7 @@ def test_get_time_hypergraph_from_ops():
     assert edges.shape == expected_edges.shape
     assert (edges == expected_edges).all()
 
-    edges = get_time_hypergraph_from_ops(ops, detector_frame="pre-gate")
+    edges = get_time_hypergraph(ops, detector_frame="pre-gate")
 
     expected_edges = np.array(
         [
