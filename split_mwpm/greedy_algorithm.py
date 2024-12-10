@@ -28,15 +28,15 @@ VALID_INSTR = [
 def greedy_algorithm(
     circuit: stim.Circuit | np.ndarray,
     detector_frame: str,
-    r_start: int = 1,
+    r_start: int = 0,
 ) -> np.ndarray:
     """
-    Wrapper for ``get_ops``, ``get_time_hypergraph`` and ``get_tracks``.
+    Wrapper for ``get_ops``, ``get_time_hypergraph`` and ``get_track_ordering``.
     See each individual function for more information.
     """
     ops = get_ops(circuit) if isinstance(circuit, stim.Circuit) else circuit
     edges = get_time_hypergraph(ops, detector_frame=detector_frame)
-    tracks = get_tracks(edges, r_start=r_start)
+    tracks = get_track_ordering(edges, r_start=r_start)
     return tracks
 
 
@@ -249,7 +249,7 @@ def get_time_hypergraph(ops: np.ndarray, detector_frame: str) -> np.ndarray:
     return edges
 
 
-def get_tracks(edges: np.ndarray, r_start: int = 0) -> np.ndarray:
+def get_track_ordering(edges: np.ndarray, r_start: int = 0) -> np.ndarray:
     """
     Returns an array specifying the ordering index for each time node.
 
@@ -363,7 +363,7 @@ def get_tracks(edges: np.ndarray, r_start: int = 0) -> np.ndarray:
 
         for node_ind, curr_edge in enumerate(curr_edges):
             if curr_edge[0] != 0 and curr_edge[1] != 0:
-                # time hyperedge (with 2 nodes on 'node_id' and 1 node in 'other_node_id'
+                # time hyperedge (with 2 nodes on 'node_id' and 1 node in 'other_node_id')
                 # it may activate qubits
                 if tracks[curr_round, node_ind] == 0:
                     tracks[curr_round, node_ind] = 1
@@ -381,3 +381,76 @@ def get_tracks(edges: np.ndarray, r_start: int = 0) -> np.ndarray:
         curr_round -= 1
 
     return tracks
+
+
+def check_ordering(track_ordering: np.ndarray, edges: np.ndarray) -> None:
+    """
+    Raises an error if the given track ordering for the given time hypergraph
+    does not fulfill the conditions of Task 1.
+
+    Parameters
+    ----------
+    track_ordering
+        See output ``tracks`` from ``get_track_ordering``.
+    edges
+        See output ``edges`` from ``get_time_hypergraph``.
+    """
+    if not isinstance(track_ordering, np.ndarray):
+        raise TypeError(
+            f"'track_ordering' must be a np.ndarray, but {type(track_ordering)} was given."
+        )
+    if not isinstance(edges, np.ndarray):
+        raise TypeError(f"'edges' must be a np.ndarray, but {type(edges)} was given.")
+    if (track_ordering.shape[0] != edges.shape[0] - 1) or (
+        track_ordering.shape[1] != edges.shape[1]
+    ):
+        raise ValueError("'track_ordering' and 'edges' do not have correct shapes.")
+
+    for r, curr_edges in enumerate(edges):
+        if r in [0, edges.shape[0] - 1]:
+            # open/close time boundaries
+            continue
+
+        for node_ind, curr_edge in enumerate(curr_edges):
+            if curr_edge[0] == 0:
+                # open/close time boundary
+                continue
+            elif curr_edge[1] == 0:
+                # time edge
+                other_node_ind = curr_edge[0] - 1  # Ni starts at 1
+                track_1 = track_ordering[r - 1][node_ind]
+                track_2 = track_ordering[r][other_node_ind]
+                if track_1 != track_2:
+                    raise ValueError(
+                        f"Incorrectly split time edge (r={r} n={node_ind})."
+                    )
+            else:
+                # time hyperedge
+                other_node_ind = curr_edge[1] - 1  # Nj starts at 1
+                r_relative = curr_edge[2]
+                track_1 = track_ordering[r - 1][node_ind]
+                track_2 = track_ordering[r][node_ind]
+                track_3 = track_ordering[r - 1 + r_relative][other_node_ind]
+                unique_tracks = set([track_1, track_2, track_3])
+
+                if len(unique_tracks) == 3:
+                    raise ValueError(
+                        "Hyperedge is split into three different subgraphs "
+                        f"(r={r} n={node_ind})."
+                    )
+                if len(unique_tracks) == 1:
+                    raise ValueError(
+                        f"Hyperedge appears in a single subgraph (r={r} n={node_ind})."
+                    )
+
+                counts = {t: 0 for t in unique_tracks}
+                for t in [track_1, track_2, track_3]:
+                    counts[t] += 1
+                reverse = {v: k for k, v in counts.items()}
+
+                if reverse[2] > reverse[1]:
+                    raise ValueError(
+                        f"Hyperedge is incorrectly split (r={r} n={node_ind})."
+                    )
+
+    return
