@@ -4,6 +4,7 @@ import stim
 from split_mwpm.greedy_algorithm import (
     standardize_circuit,
     get_time_hypergraph_from_ops,
+    get_tracks,
 )
 
 
@@ -112,5 +113,66 @@ def test_get_time_hypergraph_from_ops():
 
     assert edges.shape == expected_edges.shape
     assert (edges == expected_edges).all()
+
+    return
+
+
+def test_get_tracks():
+    # this comes from the other tests with defect_frame="post-gate"
+    edges = np.array(
+        [
+            [[0, 0, -1], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, -1], [0, 0, 0]],
+            [[0, -1, -1], [0, 0, 0], [3, 0, 0], [4, 0, 0]],
+            [[1, 3, 1], [2, 0, 0], [3, 0, 0], [4, 2, 1]],
+            [[1, 0, 0], [2, 4, 1], [3, 1, 1], [4, 0, 0]],
+            [[2, 0, 0], [1, 0, 0], [4, 0, 0], [3, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0]],
+            [[1, 0, 0], [2, 1, 1], [0, -1, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[0, -1, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+        ]
+    )
+
+    tracks = get_tracks(edges, r_start=1000)
+
+    expected_tracks = np.array(
+        [
+            [1, 1, 0, 0],
+            [1, 1, 0, 0],
+            [1, 1, 1, 1],
+            [1, 2, 1, 1],
+            [2, 2, 1, 1],
+            [2, 1, 1, 1],
+            [1, 2, 1, 1],
+            [1, 2, 1, 1],
+            [1, 1, 0, 0],
+            [1, 1, 0, 0],
+        ]
+    )
+
+    assert tracks.shape == expected_tracks.shape
+    assert (tracks == expected_tracks).all()
+
+    tracks = get_tracks(edges)
+
+    expected_tracks = np.array(
+        [
+            [1, 1, 0, 0],
+            [1, 1, 0, 0],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [2, 1, 1, 2],
+            [2, 1, 1, 2],
+            [1, 2, 2, 1],
+            [1, 2, 2, 1],
+            [1, 1, 0, 0],
+            [1, 1, 0, 0],
+        ]
+    )
+
+    assert tracks.shape == expected_tracks.shape
+    assert (tracks == expected_tracks).all()
 
     return

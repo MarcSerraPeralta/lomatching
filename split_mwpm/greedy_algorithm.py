@@ -165,7 +165,7 @@ def get_time_hypergraph_from_ops(
     ops: np.ndarray,
     detector_frame: str,
 ) -> np.ndarray:
-    """Runs an array describing the time edges between nodes.
+    """Runs an array describing the time edges between time nodes.
 
     Parameters
     ----------
@@ -184,8 +184,8 @@ def get_time_hypergraph_from_ops(
         Numpy array of size ``(num_rounds + 2, 2 * num_qubits, 3)``
         representing the time (hyper)edges. See Notes for more information
         about this format.
-        The index ``2*q`` represents the X stabilizers of qubit with index ``q``
-        and ``2*q+1`` the Z ones.
+        The value ``2 * q + 1`` represents the X stabilizers of qubit with index ``q``
+        and ``2 * q + 2`` the Z ones.
 
     Notes
     -----
@@ -285,3 +285,137 @@ def get_time_hypergraph_from_ops(
                 raise ValueError(f"{curr_op} is not a valid gate.")
 
     return edges
+
+
+def get_tracks(edges: np.ndarray, r_start: int = 0) -> np.ndarray:
+    """
+    Returns an array specifying the ordering index for each time node.
+
+    Parameters
+    ----------
+    edges
+        Numpy array of size ``(num_rounds + 2, 2 * num_qubits, 3)``
+        representing the time (hyper)edges. See Notes for more information
+        about this format.
+        The value ``2 * q + 1`` represents the X stabilizers of qubit with index ``q``
+        and ``2 * q + 2`` the Z ones.
+        See ``get_time_hypergraph_from_ops`` for more information of the
+        structure of ``edges``.
+    r_start
+        (Decoding section) time index in which to set all the decoding sections
+        at that given time index (or time slice) to track 1.
+        The first nodes have index ``r = 0`` and last nodes have index
+        ``num_rounds`` (for a total of ``num_rounds + 1`` nodes).
+
+    Returns
+    -------
+    tracks
+        Numpy array of size ``(num_rounds + 1, 2 * num_qubits)`` that
+        specifies the ordering index for each time node. The ordering index
+        starts at ``1``. Values of ``0`` indicate that the qubit is not active.
+    """
+    if not isinstance(edges, np.ndarray):
+        raise TypeError(f"'edges' must be a np.ndarray, but {type(edges)} was given.")
+    if not isinstance(r_start, int):
+        raise TypeError(f"'r_start' must be an int, but {type(r_start)} was given.")
+
+    num_rounds, num_tracks = edges.shape[0] - 2, edges.shape[1]
+
+    r_start = np.clip(r_start, 0, num_rounds + 1 - 1)
+    tracks = np.zeros((num_rounds + 1, num_tracks), dtype=int)
+
+    # prepare tracks at r_start
+    # set tracks to 1 unless the qubit is inactive
+    edges_before = edges[r_start]
+    edges_after = edges[r_start + 1]
+    inactive = (
+        (edges_before[:, 0] == 0)
+        * (edges_before[:, 2] == 0)
+        * (edges_after[:, 0] == 0)
+        * (edges_after[:, 1] == 0)
+    )
+    tracks[r_start] = 1 - inactive.astype(int)
+
+    # process forward in time.
+    # tracks[r] and edges[r+1] are used to compute tracks[r+1]
+    curr_round = r_start
+    while curr_round < num_rounds:
+        curr_edges = edges[curr_round + 1]
+        # it is important to first process the measurement (it 'kills'
+        # tracks) and then process the resets (it 'creates' tracks)
+        # for situations like MR. Hyperedges must not be processed
+        # until everything has been created because they use the index
+        # from another track (which if it has not been updated it would be 0)
+        for node_ind, curr_edge in enumerate(curr_edges):
+            if curr_edge[0] == 0:
+                # measurement or inactive qubit
+                tracks[curr_round + 1, node_ind] = 0
+            elif curr_edge[1] == 0:
+                # time edge (may activate qubits)
+                if tracks[curr_round, node_ind] == 0:
+                    tracks[curr_round, node_ind] = 1
+
+                other_node_ind = curr_edge[0] - 1  # Ni starts at 1
+                tracks[curr_round + 1, other_node_ind] = tracks[curr_round, node_ind]
+
+        for node_ind, curr_edge in enumerate(curr_edges):
+            if curr_edge[0] != 0 and curr_edge[1] != 0:
+                # time hyperedge (with 2 nodes on 'node_id' and 1 node in 'other_node_id'
+                # it may activate qubits
+                if tracks[curr_round, node_ind] == 0:
+                    tracks[curr_round, node_ind] = 1
+
+                other_node_ind = curr_edge[1] - 1  # Nj starts at 1
+                track_i = tracks[curr_round, node_ind]
+                track_j = tracks[curr_round, other_node_ind]
+                if track_i < track_j:
+                    tracks[curr_round + 1, node_ind] = track_i
+                elif track_i == track_j:
+                    tracks[curr_round + 1, node_ind] = track_i + 1
+                else:
+                    tracks[curr_round + 1, node_ind] = track_j
+
+        curr_round += 1
+
+    # process backward in time.
+    # tracks[r] and edges[r] are used to compute tracks[r-1]
+    curr_round = r_start
+    while curr_round > 0:
+        curr_edges = edges[curr_round]
+        # it is important to first process the measurement (it 'kills'
+        # tracks) and then process the resets (it 'creates' tracks)
+        # for situations like MR. Hyperedges must not be processed
+        # until everything has been created because they use the index
+        # from another track (which if it has not been updated it would be 0)
+        for node_ind, curr_edge in enumerate(curr_edges):
+            if curr_edge[0] == 0:
+                # reset or inactive qubit
+                tracks[curr_round - 1, node_ind] = 0
+            elif curr_edge[1] == 0:
+                # time edge (may activate qubits)
+                if tracks[curr_round, node_ind] == 0:
+                    tracks[curr_round, node_ind] = 1
+
+                other_node_ind = curr_edge[0] - 1  # Ni starts at 1
+                tracks[curr_round - 1, other_node_ind] = tracks[curr_round, node_ind]
+
+        for node_ind, curr_edge in enumerate(curr_edges):
+            if curr_edge[0] != 0 and curr_edge[1] != 0:
+                # time hyperedge (with 2 nodes on 'node_id' and 1 node in 'other_node_id'
+                # it may activate qubits
+                if tracks[curr_round, node_ind] == 0:
+                    tracks[curr_round, node_ind] = 1
+
+                other_node_ind = curr_edge[1] - 1  # Nj starts at 1
+                track_i = tracks[curr_round, node_ind]
+                track_j = tracks[curr_round, other_node_ind]
+                if track_i < track_j:
+                    tracks[curr_round - 1, node_ind] = track_i
+                elif track_i == track_j:
+                    tracks[curr_round - 1, node_ind] = track_i + 1
+                else:
+                    tracks[curr_round - 1, node_ind] = track_j
+
+        curr_round -= 1
+
+    return tracks
