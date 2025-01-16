@@ -229,6 +229,67 @@ def test_get_track_ordering():
     return
 
 
+def test_get_track_ordering_t_start():
+    # this comes from the other tests with defect_frame="post-gate"
+    edges = np.array(
+        [
+            [[0, 0, -1], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, -1], [0, 0, 0]],
+            [[0, -1, -1], [0, 0, 0], [3, 0, 0], [4, 0, 0]],
+            [[1, 3, 1], [2, 0, 0], [3, 0, 0], [4, 2, 1]],
+            [[1, 0, 0], [2, 4, 1], [3, 1, 1], [4, 0, 0]],
+            [[2, 0, 0], [1, 0, 0], [4, 0, 0], [3, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0]],
+            [[1, 0, 0], [2, 1, 1], [0, -1, 0], [0, 0, 0]],
+            [[1, 0, 0], [2, 0, 0], [0, 0, 0], [0, 0, 0]],
+            [[0, -1, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+        ]
+    )
+
+    tracks = get_track_ordering(edges, r_start=1000, t_start=np.array([2, 2, 2, 2]))
+
+    expected_tracks = np.array(
+        [
+            [1, 1, 0, 0],
+            [1, 1, 0, 0],
+            [1, 1, 1, 2],
+            [1, 1, 1, 2],
+            [3, 1, 1, 1],
+            [3, 2, 1, 1],
+            [2, 3, 1, 1],
+            [2, 3, 1, 1],
+            [2, 2, 0, 0],
+            [2, 2, 0, 0],
+        ]
+    )
+
+    assert tracks.shape == expected_tracks.shape
+    assert (tracks == expected_tracks).all()
+
+    tracks = get_track_ordering(edges, t_start=np.array([2, 2, 2, 2]))
+
+    expected_tracks = np.array(
+        [
+            [2, 2, 0, 0],
+            [2, 2, 0, 0],
+            [2, 2, 1, 1],
+            [1, 1, 1, 1],
+            [2, 1, 1, 2],
+            [2, 1, 1, 2],
+            [1, 2, 2, 1],
+            [1, 2, 2, 1],
+            [1, 1, 0, 0],
+            [1, 1, 0, 0],
+        ]
+    )
+
+    assert tracks.shape == expected_tracks.shape
+    assert (tracks == expected_tracks).all()
+
+    return
+
+
 def test_check_ordering():
     edges = np.array(
         [

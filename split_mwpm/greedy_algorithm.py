@@ -29,6 +29,7 @@ def greedy_algorithm(
     circuit: stim.Circuit | np.ndarray,
     detector_frame: str,
     r_start: int = 0,
+    t_start: np.ndarray | None = None,
 ) -> np.ndarray:
     """
     Wrapper for ``get_ops``, ``get_time_hypergraph`` and ``get_track_ordering``.
@@ -36,7 +37,7 @@ def greedy_algorithm(
     """
     ops = get_ops(circuit) if isinstance(circuit, stim.Circuit) else circuit
     edges = get_time_hypergraph(ops, detector_frame=detector_frame)
-    tracks = get_track_ordering(edges, r_start=r_start)
+    tracks = get_track_ordering(edges, r_start=r_start, t_start=t_start)
     return tracks
 
 
@@ -249,7 +250,9 @@ def get_time_hypergraph(ops: np.ndarray, detector_frame: str) -> np.ndarray:
     return edges
 
 
-def get_track_ordering(edges: np.ndarray, r_start: int = 0) -> np.ndarray:
+def get_track_ordering(
+    edges: np.ndarray, r_start: int = 0, t_start: np.ndarray | None = None
+) -> np.ndarray:
     """
     Returns an array specifying the ordering index for each time node.
 
@@ -268,6 +271,8 @@ def get_track_ordering(edges: np.ndarray, r_start: int = 0) -> np.ndarray:
         at that given time index (or time slice) to track 1.
         The first nodes have index ``r = 0`` and last nodes have index
         ``num_rounds`` (for a total of ``num_rounds + 1`` nodes).
+    t_start
+        Initial track indices at ``r_start``. By default, all 1s.
 
     Returns
     -------
@@ -280,8 +285,15 @@ def get_track_ordering(edges: np.ndarray, r_start: int = 0) -> np.ndarray:
         raise TypeError(f"'edges' must be a np.ndarray, but {type(edges)} was given.")
     if not isinstance(r_start, int):
         raise TypeError(f"'r_start' must be an int, but {type(r_start)} was given.")
-
     num_rounds, num_tracks = edges.shape[0] - 2, edges.shape[1]
+    if t_start is None:
+        t_start = np.ones(num_tracks, dtype=int)
+    if not isinstance(t_start, np.ndarray):
+        raise TypeError(
+            f"'t_start' must be a np.ndarray, but {type(t_start)} was given."
+        )
+    if t_start.dtype != np.int64:
+        raise TypeError(f"'t_start' must be an array of dtype = np.int64.")
 
     r_start = np.clip(r_start, 0, num_rounds + 1 - 1)
     tracks = np.zeros((num_rounds + 1, num_tracks), dtype=int)
@@ -296,7 +308,7 @@ def get_track_ordering(edges: np.ndarray, r_start: int = 0) -> np.ndarray:
         * (edges_after[:, 0] == 0)
         * (edges_after[:, 1] == 0)
     )
-    tracks[r_start] = 1 - inactive.astype(int)
+    tracks[r_start] = np.where(inactive, 0, t_start)  # 1 - inactive.astype(int)
 
     # process forward in time.
     # tracks[r] and edges[r+1] are used to compute tracks[r+1]
