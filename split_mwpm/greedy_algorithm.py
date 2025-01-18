@@ -181,11 +181,11 @@ def get_time_hypergraph(ops: np.ndarray, detector_frame: str) -> np.ndarray:
         )
 
     num_rounds, num_qubits = ops.shape[0] - 1, ops.shape[1]
+    shift = 0 if detector_frame == "post-gate" else 1
     edges = np.zeros((num_rounds + 2, 2 * num_qubits, 3), dtype=int)
 
     for r, curr_ops in enumerate(ops):
         for q, curr_op in enumerate(curr_ops):
-            shift = 0 if detector_frame == "post-gate" else 1
             if curr_op == "":
                 continue
             elif curr_op in ["R", "RZ"]:
@@ -230,12 +230,12 @@ def get_time_hypergraph(ops: np.ndarray, detector_frame: str) -> np.ndarray:
             elif "CX" in curr_op:
                 control = int(curr_op[2:].split("-")[0])
                 target = int(curr_op[2:].split("-")[1])
-                if q == control:
+                if q == target:
                     edges[r + shift][2 * q + 1][0] = 2 * q + 2
                     edges[r + shift][2 * q][0] = 2 * q + 1
                     edges[r + shift][2 * q][1] = 2 * target + 1
                     edges[r + shift][2 * q][2] = 1 - shift
-                elif q == target:
+                elif q == control:
                     edges[r + shift][2 * q][0] = 2 * q + 1
                     edges[r + shift][2 * q + 1][0] = 2 * q + 2
                     edges[r + shift][2 * q + 1][1] = 2 * control + 2
