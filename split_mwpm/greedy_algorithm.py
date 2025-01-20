@@ -544,3 +544,26 @@ def plot_time_hypergraph(ax: plt.Axes, edges: np.ndarray) -> plt.Axes:
     ax.set_ylabel("top to bottom: q0 X, q0 Z, q1 X...")
 
     return ax
+
+
+def plot_track(
+    ax: plt.Axes, tracks: np.ndarray, track_id: int, color: str = "green"
+) -> plt.Axes:
+    """
+    Plots the specified track in a matplotlib Axes following
+    the coordinates from ``plot_time_hypergraph``.
+    """
+    WIDTH = 0.5
+    for t, slice in enumerate(tracks):
+        t += 1  # rounds in plot_time_hypergraph start at 1
+        for s, value in enumerate(slice):
+            if value == track_id:
+                s = mpatches.Rectangle(
+                    (t - WIDTH / 2, s - WIDTH / 2),
+                    WIDTH,
+                    WIDTH,
+                    alpha=0.5,
+                    color=color,
+                )
+                ax.add_patch(s)
+    return ax
