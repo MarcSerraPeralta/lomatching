@@ -1,5 +1,7 @@
 import numpy as np
 import stim
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 RESET_INSTR = [
     "R",
@@ -233,12 +235,12 @@ def get_time_hypergraph(ops: np.ndarray, detector_frame: str) -> np.ndarray:
                 if q == target:
                     edges[r + shift][2 * q + 1][0] = 2 * q + 2
                     edges[r + shift][2 * q][0] = 2 * q + 1
-                    edges[r + shift][2 * q][1] = 2 * target + 1
+                    edges[r + shift][2 * q][1] = 2 * control + 1
                     edges[r + shift][2 * q][2] = 1 - shift
                 elif q == control:
                     edges[r + shift][2 * q][0] = 2 * q + 1
                     edges[r + shift][2 * q + 1][0] = 2 * q + 2
-                    edges[r + shift][2 * q + 1][1] = 2 * control + 2
+                    edges[r + shift][2 * q + 1][1] = 2 * target + 2
                     edges[r + shift][2 * q + 1][2] = 1 - shift
                 else:
                     raise ValueError(
@@ -466,3 +468,102 @@ def check_ordering(track_ordering: np.ndarray, edges: np.ndarray) -> None:
                     )
 
     return
+
+
+def plot_time_hypergraph(ax: plt.Axes, edges: np.ndarray) -> plt.Axes:
+    """Plots the time hypergraph obtained by ``get_time_hypergraph``."""
+    if not isinstance(edges, np.ndarray):
+        raise TypeError(f"'edges' must be a np.ndarray, but {type(edges)} was given.")
+    if len(edges.shape) != 3:
+        raise TypeError(
+            f"'edges' must be 3D array, but {len(edges.shape)}D array was given."
+        )
+    if edges.shape[2] != 3:
+        raise TypeError(
+            f"'edges' does not follow the formatting specified in ``get_time_hypergraph``."
+        )
+
+    _, num_stabs, _ = edges.shape
+    RADIUS = 0.15
+    BIG_RADIUS = 0.2
+
+    # add qubit labels
+    for q in range(num_stabs // 2):
+        ax.text(0, 2 * q, f"q{q} X", verticalalignment="center_baseline")
+        ax.text(0, 2 * q + 1, f"q{q} Z", verticalalignment="center_baseline")
+
+    for t, slice in enumerate(edges):
+        for s, stab_edge in enumerate(slice):
+            if (stab_edge == 0).all():
+                continue
+            elif stab_edge[2] == -1:
+                # reset open time boundary
+                c = mpatches.Circle((t + 1, s), BIG_RADIUS, color="red")
+                ax.add_patch(c)
+                c = mpatches.Circle((t + 1, s), RADIUS, color="black")
+                ax.add_patch(c)
+            elif stab_edge[1] == -1:
+                # measurement open time boundary
+                c = mpatches.Circle((t, s), BIG_RADIUS, color="red")
+                ax.add_patch(c)
+                c = mpatches.Circle((t, s), RADIUS, color="black")
+                ax.add_patch(c)
+            elif stab_edge[0] == 0:
+                # closed time boundary edge
+                pass
+            elif stab_edge[1] == 0:
+                # time edge
+                other_s = stab_edge[0] - 1
+                c = mpatches.Circle((t, s), RADIUS, color="black")
+                ax.add_patch(c)
+                c = mpatches.Circle((t + 1, other_s), RADIUS, color="black")
+                ax.add_patch(c)
+                ax.plot([t, t + 1], [s, other_s], color="black", linestyle="-")
+            else:
+                # time hyperedge
+                other_s = stab_edge[1] - 1
+                shift = stab_edge[2]
+                c = mpatches.Circle((t, s), RADIUS, color="black")
+                ax.add_patch(c)
+                c = mpatches.Circle((t + 1, s), RADIUS, color="black")
+                ax.add_patch(c)
+                c = mpatches.Circle((t + shift, other_s), RADIUS, color="black")
+                ax.add_patch(c)
+                p = mpatches.Polygon(
+                    ((t, s), (t + 1, s), (t + shift, other_s)),
+                    color=np.random.rand(3),
+                    alpha=0.5,
+                )
+                ax.add_patch(p)
+
+    ax.set_aspect("equal")
+    ax.invert_yaxis()
+    ax.get_yaxis().set_visible(False)
+    ax.set_xlim(xmin=-0.5)
+    ax.set_xlabel("QEC round")
+    ax.set_ylabel("top to bottom: q0 X, q0 Z, q1 X...")
+
+    return ax
+
+
+def plot_track(
+    ax: plt.Axes, tracks: np.ndarray, track_id: int, color: str = "green"
+) -> plt.Axes:
+    """
+    Plots the specified track in a matplotlib Axes following
+    the coordinates from ``plot_time_hypergraph``.
+    """
+    WIDTH = 0.5
+    for t, slice in enumerate(tracks):
+        t += 1  # rounds in plot_time_hypergraph start at 1
+        for s, value in enumerate(slice):
+            if value == track_id:
+                s = mpatches.Rectangle(
+                    (t - WIDTH / 2, s - WIDTH / 2),
+                    WIDTH,
+                    WIDTH,
+                    alpha=0.5,
+                    color=color,
+                )
+                ax.add_patch(s)
+    return ax
