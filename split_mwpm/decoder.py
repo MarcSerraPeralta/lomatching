@@ -1,289 +1,184 @@
-from collections.abc import Collection
-
-import stim
 import numpy as np
+import stim
 from pymatching import Matching
+import matplotlib.pyplot as plt
 
-from qec_util.dem_instrs import get_detectors, get_logicals, xor_probs
+from .greedy_algorithm import (
+    greedy_algorithm,
+    plot_track,
+    plot_time_hypergraph,
+    get_time_hypergraph,
+    get_ops,
+)
 
 
-class SplitMatching:
+class BatchSplitMatching:
     """
-    Decoder for "matchable" codes and circuits involving logical gates
-    that keep the Z-type stabilizer generators unchanged, and whose
-    detectors are built in the "r" or "r-1" frames.
+    Decodes a logical Clifford circuit run on unrotated surface codes in one go.
+    The circuit must have all the measurements at the end.
     """
 
     def __init__(
         self,
         dem: stim.DetectorErrorModel,
-        z_coords: Collection[Collection[int | float]],
-        x_coords: Collection[Collection[int | float]],
-    ) -> None:
-        """Initializes ``SplitMatching``.
+        circuit: stim.Circuit,
+        logicals: list[list[str]],
+        stab_coords: dict[str, tuple[float | int, float | int, float | int]],
+        detector_frame: str,
+    ):
+        """
+        Initializes ``BatchSplitMatching``.
 
         Parameters
         ----------
         dem
-            DEM containing coordinates for all detectors.
-        x_coords
-            List of the coordinates associated with all the X-type detectors
-            in ``dem``.
-        z_coords
-            List of the coordinates associated with all the Z-type detectors
-            in ``dem``.
+            Detector error model.
+        circuit
+            Logical circuit with only MZ, RZ, MX, RX, S, H, X, Z, Y, I, CNOT gates.
+            Circuit must start with all qubits being reset and end with all qubits
+            being measured. TICKs represent QEC cycles.
+            Conditional gates based on outcomes are not allowed.
+            Qubits can only perform a single operation inbetween QEC cycles.
+            The next operation of a measurement must be a reset.
+            It can be a stim.Circuit or a np.ndarray (see ``get_ops``).
+        logicals
+            Definition of the logicals as done in the circuit.
+            E.g. if one has defined L0 = Z0*Z1, then the ``logicals``
+            should be ``[["Z0", "Z1"]]``. They must be ordered following
+            the logical observable indices in the circuit.
+        stab_coords
+            Dictionary with keys corresponding to Z0, X0, Z1, X1... (?-stabs for each logical) in the
+            detector error model and the keys being the coordinates of all stabilizers
+            associated with that logical qubit.
+            The observable IDs must also match with the qubit indeces from ``circuit``.
         """
-        if not isinstance(dem, stim.DetectorErrorModel):
-            raise TypeError(
-                f"'dem' is not a stim.DetectorErrorModel, but a {type(dem)}."
-            )
-        self.dem = dem.flattened()
-        self.num_dets = dem.num_detectors
-        self.num_logs = dem.num_observables
+        det_to_coords = dem.get_detector_coordinates()
+        if any(c == [] for c in det_to_coords.values()):
+            raise ValueError("All detectors must have coordinates.")
+        coords_to_det = {tuple(v): k for k, v in det_to_coords.items()}
 
-        if not isinstance(z_coords, Collection):
-            raise TypeError(
-                f"'z_coords' must be a collection, but a {type(z_coords)} was given."
-            )
-        if not isinstance(x_coords, Collection):
-            raise TypeError(
-                f"'x_coords' must be a collection, but a {type(x_coords)} was given."
-            )
-        if any(not isinstance(c, Collection) for c in z_coords):
-            raise TypeError("Elements in 'z_coords' must be collections.")
-        if any(not isinstance(c, Collection) for c in x_coords):
-            raise TypeError("Elements in 'x_coords' must be collections.")
-        if any(any(not isinstance(d, (int, float)) for d in c) for c in z_coords):
-            raise TypeError("The elements in 'z_coords' must contain ints or floats.")
-        if any(any(not isinstance(d, (int, float)) for d in c) for c in x_coords):
-            raise TypeError("The elements in 'x_coords' must contain ints or floats.")
-        self.z_coords = set(tuple(map(float, c)) for c in z_coords)
-        self.x_coords = set(tuple(map(float, c)) for c in x_coords)
+        self.dem = dem
+        self.circuit = circuit
+        self.logicals = logicals
+        self.stab_coords = stab_coords
+        self.detector_frame = detector_frame
+        self.det_to_coords = det_to_coords
+        self.coords_to_det = coords_to_det
+        self.detector_frame = detector_frame
 
-        if self.z_coords.intersection(self.x_coords) != set():
-            raise ValueError("'z_coords' and 'x_coords' have common elements.")
-
-        # Get coordinates of all detectors
-        errors = []
-        dets_to_round = {}
-        self.x_dets = set()
-        self.z_dets = set()
-        for dem_instr in self.dem:
-            if dem_instr.type == "error":
-                errors.append(dem_instr)
-            elif dem_instr.type == "detector":
-                det = dem_instr.targets_copy()[0].val
-                targets = tuple(dem_instr.args_copy())
-                if len(targets) == 0:
-                    raise ValueError(
-                        f"All detectors must have coordinates:\n{dem_instr}"
-                    )
-                num_round = targets[-1]
-                coords = targets[:-1]
-                dets_to_round[det] = num_round
-                if coords in self.z_coords:
-                    self.z_dets.add(det)
-                elif coords in self.x_coords:
-                    self.x_dets.add(det)
-                else:
-                    raise ValueError(
-                        f"{det} has coorindates not present in 'z_coords' or 'x_coords'."
-                    )
-            else:
-                raise TypeError(f"Unknown {dem_instr} in 'dem'.")
-
-        if len(self.x_dets.union(self.z_dets)) != self.num_dets:
-            raise ValueError("Not all detectors have coordinates.")
-
-        # Process the errors
-        dem_z = stim.DetectorErrorModel()
-        dem_x = stim.DetectorErrorModel()
-        self.zedges_to_xdets = {}
-        hyperedges = []
-        meas_faults = {}
-        for error in errors:
-            dets = get_detectors(error)
-            logs = get_logicals(error)
-            z_dets = self.z_dets.intersection(dets)
-            x_dets = self.x_dets.intersection(dets)
-
-            if len(x_dets) <= 2 and len(z_dets) == 0:
-                # Pauli or measurement errors.
-                dem_x.append(error)
-                continue
-            if (
-                len(z_dets) == 2
-                and abs(dets_to_round[list(z_dets)[0]] - dets_to_round[list(z_dets)[1]])
-                == 1
-                and len(logs) == 0
-            ):
-                # Possible Z-type measurement error.
-                z_dets = frozenset(z_dets)
-                if z_dets not in meas_faults:
-                    meas_faults[z_dets] = [error]
-                else:
-                    meas_faults[z_dets].append(error)
-                continue
-            if len(z_dets) <= 2 and len(x_dets) == 0:
-                # As it is not a Z-type measurement error, it can only be a Pauli error.
-                dem_z.append(error)
-                z_dets = frozenset(z_dets)
-                self.zedges_to_xdets[z_dets] = np.array([], dtype=int)
-                continue
-
-            hyperedges.append(error)
-
-        # Process the Z-type measurement errors
-        for z_dets, faults in meas_faults.items():
-            # pick the most probable one, and in case of tie pick the
-            # one triggering less detectors
-            faults = sorted(faults, key=lambda x: len(x.targets_copy()))
-            faults = sorted(faults, key=lambda x: x.args_copy()[0], reverse=True)
-            fault = faults[0]
-            hyperedges += faults[1:]
-
-            dets = get_detectors(fault)
-            x_dets = np.array(list(self.x_dets.intersection(dets)), dtype=int)
-            self.zedges_to_xdets[z_dets] = x_dets
-
-            z_fault = stim.DemInstruction(
-                "error",
-                args=fault.args_copy(),
-                targets=list(map(stim.target_relative_detector_id, z_dets)),
-            )
-            dem_z.append(z_fault)
-
-        # Process hyperedges to update the probabilities of 'dem_z' and 'dem_x'
-        zedges_to_zind = {
-            frozenset(self.z_dets.intersection(get_detectors(err))): k
-            for k, err in enumerate(dem_z)
-        }
-        xedges_to_xind = {
-            frozenset(self.x_dets.intersection(get_detectors(err))): k
-            for k, err in enumerate(dem_x)
-        }
-        z_probs = [[] for _, _ in enumerate(dem_z)]
-        x_probs = [[] for _, _ in enumerate(dem_x)]
-
-        mwpm_dem_z = dem_z.copy()
-        mwpm_dem_x = dem_x.copy()
-        for d in range(self.num_dets):
-            instr = stim.DemInstruction(
-                "detector", args=[], targets=[stim.target_relative_detector_id(d)]
-            )
-            mwpm_dem_z.append(instr)
-            mwpm_dem_x.append(instr)
-        mwpm_z = Matching(mwpm_dem_z)
-        mwpm_x = Matching(mwpm_dem_x)
-
-        for error in hyperedges:
-            dets = get_detectors(error)
-            logs = get_logicals(error)
-            z_dets = np.array(list(self.z_dets.intersection(dets)), dtype=int)
-            x_dets = np.array(list(self.x_dets.intersection(dets)), dtype=int)
-
-            syndrome_z = np.zeros(self.num_dets, dtype=bool)
-            syndrome_z[z_dets] ^= True
-            syndrome_x = np.zeros(self.num_dets, dtype=bool)
-            syndrome_x[x_dets] ^= True
-
-            z_edges = mwpm_z.decode_to_edges_array(syndrome_z)
-            for z_edge in z_edges:
-                z_edge = frozenset(i for i in z_edge if i != -1)
-                xdets_flipped = self.zedges_to_xdets[z_edge]
-                syndrome_x[xdets_flipped] ^= True
-
-                zind = zedges_to_zind[z_edge]
-                prob = dem_z[zind].args_copy()[0]
-                z_probs[zind].append(prob)
-
-            x_edges = mwpm_x.decode_to_edges_array(syndrome_x)
-            for x_edge in x_edges:
-                x_edge = frozenset(i for i in x_edge if i != -1)
-
-                xind = xedges_to_xind[x_edge]
-                prob = dem_x[xind].args_copy()[0]
-                x_probs[xind].append(prob)
-
-        self.dem_z = stim.DetectorErrorModel()
-        self.dem_x = stim.DetectorErrorModel()
-        for probs, dem_instr in zip(z_probs, dem_z):
-            prob = dem_instr.args_copy()[0]
-            new_prob = xor_probs(prob, *probs)
-            new_instr = stim.DemInstruction(
-                "error", args=[new_prob], targets=dem_instr.targets_copy()
-            )
-            self.dem_z.append(new_instr)
-        for probs, dem_instr in zip(x_probs, dem_x):
-            prob = dem_instr.args_copy()[0]
-            new_prob = xor_probs(prob, *probs)
-            new_instr = stim.DemInstruction(
-                "error", args=[new_prob], targets=dem_instr.targets_copy()
-            )
-            self.dem_x.append(new_instr)
-
-        # Create variables used in self.decode
-        self.zedges_to_logs = {}
-        for error in self.dem_z:
-            dets = get_detectors(error)
-            logs = get_logicals(error)
-            z_dets = frozenset(self.z_dets.intersection(dets))
-            self.zedges_to_logs[z_dets] = np.array(list(logs), dtype=int)
-
-        self.z_dets = np.array(list(self.z_dets), dtype=int)
-        self.x_dets = np.array(list(self.x_dets), dtype=int)
-
-        for l in range(self.num_logs):
-            instr = stim.DemInstruction(
-                "logical_observable",
-                args=[],
-                targets=[stim.target_logical_observable_id(l)],
-            )
-            self.dem_z.append(instr)
-            self.dem_x.append(instr)
-        for d in range(self.num_dets):
-            instr = stim.DemInstruction(
-                "detector", args=[], targets=[stim.target_relative_detector_id(d)]
-            )
-            self.dem_z.append(instr)
-            self.dem_x.append(instr)
-
-        self.mwpm_z = Matching(self.dem_z)
-        self.mwpm_x = Matching(self.dem_x)
+        self._prepare_decoder()
 
         return
 
-    def decode(self, syndrome: np.ndarray) -> np.ndarray:
-        if syndrome.shape != (self.num_dets,):
-            raise ValueError(
-                f"'syndrome' must have shape {(self.num_dets,)}, "
-                f"but shape {syndrome.shape} was given."
+    def _prepare_decoder(self):
+        """
+        Prepares all the variables required for running ``self.decode``
+        and ``self.decode_batch``.
+        """
+        self.decoding_subgraphs = {}
+
+        for k, logical in enumerate(self.logicals):
+            tracks = greedy_algorithm(
+                self.circuit,
+                detector_frame=self.detector_frame,
+                r_start=999_999_999,
+                t_start=get_initial_tracks(logical, self.circuit.num_qubits),
             )
-        if syndrome.dtype != bool:
-            raise ValueError("'syndrome' must be np.ndarray[bool].")
+            # fig, ax = plt.subplots()
+            # plot_time_hypergraph(ax, get_time_hypergraph(get_ops(self.circuit), self.detector_frame))
+            # plot_track(ax, tracks, 1)
+            # plt.show()
+            self.decoding_subgraphs[k] = get_subgraph(
+                self.dem, tracks, self.stab_coords, self.coords_to_det, k
+            )
 
-        log_flips = np.zeros(self.num_logs, dtype=bool)
+        return
 
-        syndrome_z = syndrome.copy()
-        syndrome_z[self.x_dets] = False
-        syndrome_x = syndrome.copy()
-        syndrome_x[self.z_dets] = False
+    def decode(self, defects: np.ndarray) -> np.ndarray:
+        logical_correction = np.zeros(len(self.logicals))
+        for k, _ in enumerate(self.logicals):
+            mwpm = Matching(self.decoding_subgraphs[k])
+            prediction = mwpm.decode(defects)
+            logical_correction[k] = prediction[k]
+        return logical_correction
 
-        z_edges = self.mwpm_z.decode_to_edges_array(syndrome_z)
-        for z_edge in z_edges:
-            z_edge = frozenset(i for i in z_edge if i != -1)
-            xdets_flipped = self.zedges_to_xdets[z_edge]
-            logs_flipped = self.zedges_to_logs[z_edge]
-            syndrome_x[xdets_flipped] ^= True
-            log_flips[logs_flipped] ^= True
+    def decode_batch(self, defects: np.ndarray) -> np.ndarray:
+        logical_correction = np.zeros((len(defects), len(self.logicals)))
+        for k, _ in enumerate(self.logicals):
+            mwpm = Matching(self.decoding_subgraphs[k])
+            prediction = mwpm.decode_batch(defects)
+            logical_correction[:, k] = prediction[:, k]
+        return logical_correction
 
-        log_flips ^= self.mwpm_x.decode(syndrome_x).astype(bool)
 
-        return log_flips
+def get_initial_tracks(logical: list[str], num_qubits: int) -> np.ndarray:
+    """Returns initial track indices for ``greedy_algorithm``."""
+    shift = {"X": 0, "Z": 1}
+    t_start = [2] * (2 * num_qubits)
+    for l in logical:
+        index = 2 * int(l[1:]) + shift[l[0]]
+        t_start[index] = 1
+    return np.array(t_start)
 
-    def decode_batch(self, syndromes: np.ndarray) -> np.ndarray:
-        num_shots, _ = syndromes.shape
-        log_flips = np.zeros((num_shots, self.num_logs), dtype=bool)
-        for k, syndrome in enumerate(syndromes):
-            log_flips[k] = self.decode(syndrome)
-        return log_flips
+
+def get_subgraph(
+    dem: stim.DetectorErrorModel,
+    tracks: np.ndarray,
+    stab_coords: dict,
+    coords_to_det: dict,
+    logical_id: int,
+) -> stim.DetectorErrorModel:
+    dets_track_1 = []
+    for t, slice in enumerate(tracks):
+        if t == len(tracks) - 1:
+            # logical measurements
+            t -= 0.5
+
+        for k, s in enumerate(slice):
+            if s == 1:
+                # track 1
+                prefix = "Z" if k % 2 == 1 else "X"
+                label = f"{prefix}{k//2}"
+                dets_track_1 += [
+                    coords_to_det[(*list(map(float, xy)), float(t))]
+                    for xy in stab_coords[label]
+                ]
+    dets_track_1 = set(dets_track_1)
+
+    subdem = stim.DetectorErrorModel()
+    for dem_instr in dem.flattened():
+        if dem_instr.type != "error":
+            subdem.append(dem_instr)
+            continue
+
+        det_ids = set(
+            i.val for i in dem_instr.targets_copy() if i.is_relative_detector_id()
+        )
+        subdet_ids = det_ids.intersection(dets_track_1)
+        if len(subdet_ids) == 0:
+            continue
+
+        log_ids = set(
+            i.val for i in dem_instr.targets_copy() if i.is_logical_observable_id()
+        )
+        sublog_ids = set([logical_id]) if logical_id in log_ids else set()
+
+        targets = [stim.target_relative_detector_id(d) for d in subdet_ids]
+        targets += [stim.target_logical_observable_id(l) for l in sublog_ids]
+
+        new_instr = stim.DemInstruction(
+            "error", args=dem_instr.args_copy(), targets=targets
+        )
+        subdem.append(new_instr)
+
+    # this is just for pymatching to not complain about "no perfect matching could
+    # not be found" because some nodes are not connected
+    all_nodes = set(range(dem.num_detectors))
+    dets_no_track_1 = all_nodes.difference(dets_track_1)
+    for det in dets_no_track_1:
+        new_instr = stim.DemInstruction(
+            "error", args=[0.5], targets=[stim.target_relative_detector_id(det)]
+        )
+        subdem.append(new_instr)
+
+    return subdem
