@@ -1,15 +1,8 @@
 import numpy as np
 import stim
 from pymatching import Matching
-import matplotlib.pyplot as plt
 
-from .greedy_algorithm import (
-    greedy_algorithm,
-    plot_track,
-    plot_time_hypergraph,
-    get_time_hypergraph,
-    get_ops,
-)
+from .greedy_algorithm import greedy_algorithm
 
 
 class BatchSplitMatching:
@@ -66,6 +59,9 @@ class BatchSplitMatching:
         self.coords_to_det = coords_to_det
         self.detector_frame = detector_frame
 
+        self.decoding_subgraphs = {}
+        self.mwpm_subgraphs = {}
+
         self._prepare_decoder()
 
         return
@@ -75,7 +71,6 @@ class BatchSplitMatching:
         Prepares all the variables required for running ``self.decode``
         and ``self.decode_batch``.
         """
-        self.decoding_subgraphs = {}
 
         for k, logical in enumerate(self.logicals):
             tracks = greedy_algorithm(
@@ -84,29 +79,24 @@ class BatchSplitMatching:
                 r_start=999_999_999,
                 t_start=get_initial_tracks(logical, self.circuit.num_qubits),
             )
-            # fig, ax = plt.subplots()
-            # plot_time_hypergraph(ax, get_time_hypergraph(get_ops(self.circuit), self.detector_frame))
-            # plot_track(ax, tracks, 1)
-            # plt.show()
             self.decoding_subgraphs[k] = get_subgraph(
                 self.dem, tracks, self.stab_coords, self.coords_to_det, k
             )
+            self.mwpm_subgraphs[k] = Matching(self.decoding_subgraphs[k])
 
         return
 
     def decode(self, defects: np.ndarray) -> np.ndarray:
         logical_correction = np.zeros(len(self.logicals))
         for k, _ in enumerate(self.logicals):
-            mwpm = Matching(self.decoding_subgraphs[k])
-            prediction = mwpm.decode(defects)
+            prediction = self.mwpm_subgraphs[k].decode(defects)
             logical_correction[k] = prediction[k]
         return logical_correction
 
     def decode_batch(self, defects: np.ndarray) -> np.ndarray:
         logical_correction = np.zeros((len(defects), len(self.logicals)))
         for k, _ in enumerate(self.logicals):
-            mwpm = Matching(self.decoding_subgraphs[k])
-            prediction = mwpm.decode_batch(defects)
+            prediction = self.mwpm_subgraphs[k].decode_batch(defects)
             logical_correction[:, k] = prediction[:, k]
         return logical_correction
 
