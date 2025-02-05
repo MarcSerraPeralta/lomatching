@@ -5,10 +5,10 @@ from pymatching import Matching
 from .greedy_algorithm import greedy_algorithm
 
 
-class SingleObsDecoder:
+class SoMatching:
     """
-    Decodes a logical Clifford circuit run on unrotated surface codes in one go.
-    The circuit must have all the measurements at the end.
+    Decodes the observables (from a logical measurement) in a logical Clifford circuit
+    run on a surface code.
     """
 
     def __init__(
@@ -20,7 +20,7 @@ class SingleObsDecoder:
         detector_frame: str,
     ):
         """
-        Initializes ``SingleObsDecoder``.
+        Initializes ``SoMatching``.
 
         Parameters
         ----------

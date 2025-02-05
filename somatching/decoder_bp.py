@@ -14,10 +14,11 @@ from .util import (
 )
 
 
-class BeliefSingleObsDecoder:
+class BeliefSoMatching:
     """
-    Decodes a logical Clifford circuit run on unrotated surface codes in one go.
-    The circuit must have all the measurements at the end.
+    Decodes the observables (from a logical measurement) in a logical Clifford circuit
+    run on a surface code. It runs belief-propagation on the full hypergraph
+    to update the probabilities of the subgraphs.
     """
 
     def __init__(
@@ -28,12 +29,49 @@ class BeliefSingleObsDecoder:
         stab_coords: dict[str, tuple[float | int, float | int, float | int]],
         detector_frame: str,
         ignore_decomposition_failures: bool = False,
+        max_iter: int = 20,
+        bp_method: str = "product_sum",
         **kargs_bp,
     ):
         """
-        Same arguments as ``BatchSplitMatching`` and now including
-        ``bp_args`` as arguments for initializing the BP decoder
-        (``dem_decoders.BP``)
+        Initializes ``BeliefSoMatching``.
+
+        Parameters
+        ----------
+        dem
+            Detector error model.
+        circuit
+            Logical circuit with only MZ, RZ, MX, RX, S, H, X, Z, Y, I, CNOT gates.
+            Circuit must start with all qubits being reset and end with all qubits
+            being measured. TICKs represent QEC cycles.
+            Conditional gates based on outcomes are not allowed.
+            Qubits can only perform a single operation inbetween QEC cycles.
+            The next operation of a measurement must be a reset.
+            It can be a ``stim.Circuit`` or a ``np.ndarray``
+            (see ``somatching.greedy_algorithm.get_ops``).
+        logicals
+            Definition of the logicals as done in the circuit.
+            E.g. if one has defined L0 = Z0*Z1, then the ``logicals``
+            should be ``[["Z0", "Z1"]]``. They must be ordered following
+            the logical observable indices in the circuit.
+        stab_coords
+            Dictionary with keys corresponding to Z0, X0, Z1, X1... (?-stabs for each logical) in the
+            detector error model and the keys being the coordinates of all stabilizers
+            associated with that logical qubit.
+            The observable IDs must also match with the qubit indeces from ``circuit``.
+        detector_frame
+            Frame used when defining the detectors. Must be either ``"pre-gate"``
+            or ``"post-gate"``.
+        ignore_decomposition_failures
+            Ignore hyperedge decomposition failures when building the DEM subgraphs
+            for ``pymatching.Matching``. By default ``False``. If the circuit distance
+            is lower than the distance of the surface code(s), set to ``True``.
+        max_iter
+            Maximum number of iterations for belief propagation.
+        bp_method
+            Belief-propagation method, for more information see ``ldpc.bp_decoder.BpDecoder``.
+        kargs_bp
+            Extra arguments for ``ldpc.bp_decoder.BpDecoder``.
         """
         det_to_coords = dem.get_detector_coordinates()
         if any(c == [] for c in det_to_coords.values()):
@@ -58,6 +96,8 @@ class BeliefSingleObsDecoder:
             self.h,
             error_channel=self.p,
             input_vector_type="syndrome",
+            max_iter=max_iter,
+            bp_method=bp_method,
             **kargs_bp,
         )
 
