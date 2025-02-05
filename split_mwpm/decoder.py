@@ -5,7 +5,7 @@ from pymatching import Matching
 from .greedy_algorithm import greedy_algorithm
 
 
-class BatchSplitMatching:
+class SingleObsDecoder:
     """
     Decodes a logical Clifford circuit run on unrotated surface codes in one go.
     The circuit must have all the measurements at the end.
@@ -20,7 +20,7 @@ class BatchSplitMatching:
         detector_frame: str,
     ):
         """
-        Initializes ``BatchSplitMatching``.
+        Initializes ``SingleObsDecoder``.
 
         Parameters
         ----------
