@@ -33,8 +33,6 @@ iniconfig==2.0.0
     # via pytest
 kiwisolver==1.4.8
     # via matplotlib
-llvmlite==0.44.0
-    # via numba
 matplotlib==3.10.0
     # via
     #   pymatching
@@ -45,13 +43,10 @@ mypy-extensions==1.0.0
     # via black
 networkx==3.4.2
     # via pymatching
-numba==0.61.0
-    # via somatching (pyproject.toml)
 numpy==1.26.4
     # via
     #   contourpy
     #   matplotlib
-    #   numba
     #   pymatching
     #   scipy
     #   somatching (pyproject.toml)

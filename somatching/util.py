@@ -1,11 +1,9 @@
 import math
 import numpy as np
-import numba as nb
 import stim
 from scipy.sparse import csc_matrix
 
 
-@nb.jit("float64(float64[:])", nopython=True)
 def comb_probs_to_w(probs: np.ndarray) -> float:
     p = probs[0]
     for q in probs[1:]:
