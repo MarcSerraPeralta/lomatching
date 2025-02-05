@@ -44,6 +44,9 @@ class SoMatching:
             detector error model and the keys being the coordinates of all stabilizers
             associated with that logical qubit.
             The observable IDs must also match with the qubit indeces from ``circuit``.
+        detector_frame
+            Frame used when defining the detectors. Must be either ``"pre-gate"``
+            or ``"post-gate"``.
         """
         det_to_coords = dem.get_detector_coordinates()
         if any(c == [] for c in det_to_coords.values()):
