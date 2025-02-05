@@ -5,11 +5,11 @@ import stim
 from scipy.sparse import csc_matrix
 
 
-@nb.jit("float64(float64[:])")
+@nb.jit("float64(float64[:])", nopython=True)
 def comb_probs_to_w(probs: np.ndarray) -> float:
     p = probs[0]
     for q in probs[1:]:
-        p = comb_prob_pair(p, q)
+        p = p * (1 - q) + (1 - p) * q
     # avoid numerical issues with math.log
     eps = 1e-14
     if p < eps:
@@ -17,11 +17,6 @@ def comb_probs_to_w(probs: np.ndarray) -> float:
     elif p > 1 - eps:
         p = 1 - eps
     return -math.log(p / (1 - p))
-
-
-@nb.jit("float64(float64,float64)")
-def comb_prob_pair(p: float | int, q: float | int) -> float | int:
-    return p * (1 - q) + (1 - p) * q
 
 
 def dem_to_hplc(
@@ -177,6 +172,7 @@ def valid_decomposition(
 
 def get_edges_dict(
     primitive_dem: stim.DetectorErrorModel,
+    ignore_decomposition_failures: bool = False,
 ) -> dict[tuple[int, int], int]:
     edges_dict = {}
     ind_to_logs_dict = {}
@@ -190,13 +186,10 @@ def get_edges_dict(
 
         if dets in edges_dict:
             equiv_ind = edges_dict[dets]
-            if ind_to_logs_dict[equiv_ind] == logs:
-                # repeated instruction
+            if (ind_to_logs_dict[equiv_ind] == logs) or ignore_decomposition_failures:
+                # repeated instruction or ignore decomposition failure
                 continue
             else:
-                print(
-                    instr, primitive_dem[equiv_ind], logs, ind_to_logs_dict[equiv_ind]
-                )
                 raise ValueError(
                     "Edges triggering same detector but with different logical effect have been found."
                 )

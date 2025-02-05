@@ -27,6 +27,7 @@ class BeliefSingleObsDecoder:
         logicals: list[list[str]],
         stab_coords: dict[str, tuple[float | int, float | int, float | int]],
         detector_frame: str,
+        ignore_decomposition_failures: bool = False,
         **kargs_bp,
     ):
         """
@@ -61,6 +62,7 @@ class BeliefSingleObsDecoder:
         )
 
         # for running Matching in the subgraphs
+        self.ignore_decomposition_failures = ignore_decomposition_failures
         self.h_sub = []
         self.l_sub = []
         self.e_sub_to_h_supp = []
@@ -100,7 +102,11 @@ class BeliefSingleObsDecoder:
                 active_e_sub.append((999_999_999, instr))
 
             primitive_dem = get_primitive_dem(active_e_sub)
-            h_sub_decom = get_hyperedge_decomposition(primitive_dem, active_h_sub)
+            h_sub_decom = get_hyperedge_decomposition(
+                primitive_dem,
+                active_h_sub,
+                ignore_decomposition_failures=self.ignore_decomposition_failures,
+            )
             e_sub_to_h_supp = get_e_sub_to_h_supp(active_e_sub, h_sub_decom)
             h_sub, _, l_sub, _ = dem_to_hplc(primitive_dem)
 
@@ -235,7 +241,9 @@ def get_hyperedge_decomposition(
     decomposition = {}
     mwpm = Matching(primitive_dem)
     num_dets = primitive_dem.num_detectors
-    edges_dict = get_edges_dict(primitive_dem)
+    edges_dict = get_edges_dict(
+        primitive_dem, ignore_decomposition_failures=ignore_decomposition_failures
+    )
 
     for h_ind, dem_instr in h_sub:
         det_inds = np.array(
