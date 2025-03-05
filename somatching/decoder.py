@@ -165,7 +165,7 @@ def get_subgraph(
         subdem.append(new_instr)
 
     # this is just for pymatching to not complain about "no perfect matching could
-    # not be found" because some nodes are not connected
+    # not be found" because inactive nodes are not connected
     all_nodes = set(range(dem.num_detectors))
     dets_no_track_1 = all_nodes.difference(dets_track_1)
     for det in dets_no_track_1:

@@ -3,7 +3,7 @@ import numpy as np
 import stim
 import matplotlib.pyplot as plt
 
-from split_mwpm.greedy_algorithm import (
+from somatching.greedy_algorithm import (
     get_ops,
     get_time_hypergraph,
     get_track_ordering,

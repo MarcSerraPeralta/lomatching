@@ -1,7 +1,7 @@
 import stim
 import numpy as np
 
-from split_mwpm import BatchSplitMatching
+from somatching import SoMatching
 
 
 def test_SplitMatching():
