@@ -24,6 +24,8 @@ VALID_INSTR = [
     "Y",
     "I",
     "CX",
+    "CZ",
+    "SQRT_X",
 ]
 
 
@@ -50,7 +52,7 @@ def get_ops(circuit: stim.Circuit) -> np.ndarray:
     Parameters
     ----------
     circuit
-        Logical circuit with only MZ, RZ, MX, RX, S, H, X, Z, Y, I, CNOT gates.
+        Logical circuit with only MZ, RZ, MX, RX, S, H, X, Z, Y, I, SQRT_X, CNOT, CZ gates.
         Circuit must start with all qubits being reset and end with all qubits
         being measured. TICKs represent QEC cycles.
         Conditional gates based on outcomes are not allowed.
@@ -99,6 +101,10 @@ def get_ops(circuit: stim.Circuit) -> np.ndarray:
                 if "CX" in name:
                     name = (
                         f"CX{q}-{qubits[i+1]}" if i % 2 == 0 else f"CX{qubits[i-1]}-{q}"
+                    )
+                if "CZ" in name:
+                    name = (
+                        f"CZ{q}-{qubits[i+1]}" if i % 2 == 0 else f"CZ{qubits[i-1]}-{q}"
                     )
                 curr_ops[q].append(name)
                 if not active_qubits[q]:
@@ -229,6 +235,11 @@ def get_time_hypergraph(ops: np.ndarray, detector_frame: str) -> np.ndarray:
                 edges[r + shift][2 * q + 1][0] = 2 * q + 2
                 edges[r + shift][2 * q + 1][1] = 2 * q + 1
                 edges[r + shift][2 * q + 1][2] = 1 - shift
+            elif curr_op == "SQRT_X":
+                edges[r + shift][2 * q][0] = 2 * q + 1
+                edges[r + shift][2 * q][1] = 2 * q + 2
+                edges[r + shift][2 * q][2] = 1 - shift
+                edges[r + shift][2 * q + 1][0] = 2 * q + 2
             elif "CX" in curr_op:
                 control = int(curr_op[2:].split("-")[0])
                 target = int(curr_op[2:].split("-")[1])
@@ -246,6 +257,18 @@ def get_time_hypergraph(ops: np.ndarray, detector_frame: str) -> np.ndarray:
                     raise ValueError(
                         f"'CX' gate in qubit {q} does not contain this qubit (i.e. {curr_op})."
                     )
+            elif "CZ" in curr_op:
+                control = int(curr_op[2:].split("-")[0])
+                target = int(curr_op[2:].split("-")[1])
+                if q not in [control, target]:
+                    raise ValueError(
+                        f"'CZ' gate in qubit {q} does not contain this qubit (i.e. {curr_op})."
+                    )
+                other = control if q == target else target
+                edges[r + shift][2 * q][0] = 2 * q + 1
+                edges[r + shift][2 * q + 1][0] = 2 * q + 2
+                edges[r + shift][2 * q + 1][1] = 2 * other + 1
+                edges[r + shift][2 * q + 1][2] = 1 - shift
             else:
                 raise ValueError(f"{curr_op} is not a valid gate.")
 

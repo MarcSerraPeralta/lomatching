@@ -8,7 +8,7 @@ FILE_EXCEPTIONS = ["__init__.py"]
 
 def test_tests():
     test_dir = pathlib.Path("tests")
-    mod_dir = pathlib.Path("split_mwpm")
+    mod_dir = pathlib.Path("lomatching")
     if not mod_dir.exists():
         raise ValueError("module directory does not exist.")
 
@@ -25,6 +25,8 @@ def test_tests():
 
             # change root dir to test_dir
             relpath = os.path.relpath(path, mod_dir)
+            if relpath == ".":
+                relpath = ""
             testpath = os.path.join(test_dir, relpath)
             if not os.path.exists(os.path.join(testpath, "test_" + file)):
                 raise ValueError(
