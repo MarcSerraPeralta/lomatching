@@ -28,4 +28,13 @@ include = ["lomatching", "lomatching.*"]  # package names should match these glo
 namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project.optional-dependencies]
-dev = ["pip-tools", "pytest", "black", "pytest-black", "flake8", "flake8-print", "pytest-flake8"]
+dev = [
+    "pip-tools", 
+    "pytest", 
+    "black", 
+    "pytest-black", 
+    "flake8", 
+    "flake8-print", 
+    "pytest-flake8",
+    "surface-sim",
+]
