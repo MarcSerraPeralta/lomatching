@@ -6,8 +6,8 @@
 #
 black==24.10.0
     # via
+    #   lomatching (pyproject.toml)
     #   pytest-black
-    #   somatching (pyproject.toml)
 build==1.2.2.post1
     # via pip-tools
 click==8.1.8
@@ -23,23 +23,20 @@ exceptiongroup==1.2.2
 flake8==7.1.1
     # via
     #   flake8-print
+    #   lomatching (pyproject.toml)
     #   pytest-flake8
-    #   somatching (pyproject.toml)
 flake8-print==5.0.0
-    # via somatching (pyproject.toml)
+    # via lomatching (pyproject.toml)
 fonttools==4.55.3
     # via matplotlib
 iniconfig==2.0.0
     # via pytest
 kiwisolver==1.4.8
     # via matplotlib
-ldpc==2.2.8
-    # via somatching (pyproject.toml)
 matplotlib==3.10.0
     # via
+    #   lomatching (pyproject.toml)
     #   pymatching
-    #   sinter
-    #   somatching (pyproject.toml)
 mccabe==0.7.0
     # via flake8
 mypy-extensions==1.0.0
@@ -49,12 +46,10 @@ networkx==3.4.2
 numpy==1.26.4
     # via
     #   contourpy
-    #   ldpc
+    #   lomatching (pyproject.toml)
     #   matplotlib
     #   pymatching
     #   scipy
-    #   sinter
-    #   somatching (pyproject.toml)
     #   stim
 packaging==24.2
     # via
@@ -67,7 +62,7 @@ pathspec==0.12.1
 pillow==11.1.0
     # via matplotlib
 pip-tools==7.4.1
-    # via somatching (pyproject.toml)
+    # via lomatching (pyproject.toml)
 platformdirs==4.3.6
     # via black
 pluggy==1.5.0
@@ -79,9 +74,7 @@ pycodestyle==2.12.1
 pyflakes==3.2.0
     # via flake8
 pymatching==2.2.1
-    # via
-    #   ldpc
-    #   somatching (pyproject.toml)
+    # via lomatching (pyproject.toml)
 pyparsing==3.2.1
     # via matplotlib
 pyproject-hooks==1.2.0
@@ -90,30 +83,21 @@ pyproject-hooks==1.2.0
     #   pip-tools
 pytest==8.3.4
     # via
-    #   ldpc
+    #   lomatching (pyproject.toml)
     #   pytest-black
     #   pytest-flake8
-    #   somatching (pyproject.toml)
 pytest-black==0.6.0
-    # via somatching (pyproject.toml)
+    # via lomatching (pyproject.toml)
 pytest-flake8==1.3.0
-    # via somatching (pyproject.toml)
+    # via lomatching (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via matplotlib
 scipy==1.15.1
-    # via
-    #   ldpc
-    #   pymatching
-    #   sinter
-sinter==1.14.0
-    # via ldpc
+    # via pymatching
 six==1.17.0
     # via python-dateutil
 stim==1.14.0
-    # via
-    #   ldpc
-    #   sinter
-    #   somatching (pyproject.toml)
+    # via lomatching (pyproject.toml)
 toml==0.10.2
     # via pytest-black
 tomli==2.2.1
@@ -122,8 +106,6 @@ tomli==2.2.1
     #   build
     #   pip-tools
     #   pytest
-tqdm==4.67.1
-    # via ldpc
 typing-extensions==4.12.2
     # via black
 wheel==0.45.1

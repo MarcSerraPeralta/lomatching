@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 requires-python = ">=3.10"
-name = "somatching"
-description = "Single-observable decoder for transversal logical gates in surface codes based on pymatching." 
+name = "lomatching"
+description = "Logical observable decoder for transversal logical gates in surface codes based on pymatching." 
 version = "0.1.0"
 authors = [
     { name = "Marc Serra Peralta", email = "marcserraperalta@gmail.com" }
@@ -20,12 +20,11 @@ dependencies = [
     "stim",
     "pymatching",
     "matplotlib",
-    "ldpc",
 ]
 keywords = ["MWPM", "QEC", "quantum error correction", "logical-gates", "decoder"]
 
 [tool.setuptools.packages.find]
-include = ["somatching", "somatching.*"]  # package names should match these glob patterns (["*"] by default)
+include = ["lomatching", "lomatching.*"]  # package names should match these glob patterns (["*"] by default)
 namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project.optional-dependencies]
