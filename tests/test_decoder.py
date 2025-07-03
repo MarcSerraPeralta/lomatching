@@ -11,22 +11,15 @@ from lomatching import MoMatching
 
 def test_MoMatching():
     layouts = unrot_surface_codes(2, distance=3)
-    qubit_inds = {}
-    anc_coords = {}
-    anc_qubits = []
-    stab_coords = {}
-    for l, layout in enumerate(layouts):
-        qubit_inds.update(layout.qubit_inds())
-        anc_qubits += layout.get_qubits(role="anc")
-        coords = layout.anc_coords()
-        anc_coords.update(coords)
-        stab_coords[f"Z{l}"] = [v for k, v in coords.items() if k[0] == "Z"]
-        stab_coords[f"X{l}"] = [v for k, v in coords.items() if k[0] == "X"]
-
     setup = CircuitNoiseSetup()
     setup.set_var_param("prob", 1e-3)
-    model = CircuitNoiseModel(setup=setup, qubit_inds=qubit_inds)
-    detectors = Detectors(anc_qubits, frame="pre-gate", anc_coords=anc_coords)
+    model = CircuitNoiseModel.from_layouts(setup, *layouts)
+    detectors = Detectors.from_layouts("pre-gate", *layouts)
+    stab_coords = {}
+    for l, layout in enumerate(layouts):
+        coords = layout.anc_coords
+        stab_coords[f"Z{l}"] = [v for k, v in coords.items() if k[0] == "Z"]
+        stab_coords[f"X{l}"] = [v for k, v in coords.items() if k[0] == "X"]
 
     circuit = stim.Circuit(
         """
