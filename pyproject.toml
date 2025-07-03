@@ -20,6 +20,8 @@ dependencies = [
     "stim",
     "pymatching",
     "matplotlib",
+    "qec-util>=0.4.1",
+    "galois",
 ]
 keywords = ["MWPM", "QEC", "quantum error correction", "logical-gates", "decoder"]
 
