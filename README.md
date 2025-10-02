@@ -91,5 +91,15 @@ log_errors = (predictions != log_flips)
 ## How do I cite `lomatching`?
 
 When using `lomatching` for research, please cite:
-
+```
+@misc{serraperalta2025decoding,
+      title={Decoding across transversal Clifford gates in the surface code}, 
+      author={Marc Serra-Peralta and Mackenzie H. Shaw and Barbara M. Terhal},
+      year={2025},
+      eprint={2505.13599},
+      archivePrefix={arXiv},
+      primaryClass={quant-ph},
+      url={https://arxiv.org/abs/2505.13599}, 
+}
+```
 
