@@ -3,18 +3,13 @@
 
 cff-version: 1.2.0
 title: lomatching
-message: Logial Observable Matching (LOM) decoder
 type: software
 authors:
   - given-names: Marc
     family-names: Serra Peralta
-    email: m.serraperalta@tudeflt.nl
+    email: marcserraperalta@gmail.com
     affiliation: TU Delft
     orcid: 'https://orcid.org/0000-0002-8000-8701'
-identifiers:
-  - type: doi
-    value: 10.48550/arXiv.2505.13599
-    description: arXiv submission
 repository-code: 'https://github.com/MarcSerraPeralta/lomatching'
 url: 'https://github.com/MarcSerraPeralta/lomatching'
 abstract: >-
@@ -24,3 +19,19 @@ license: MIT
 commit: 88c5e1e78ee9813b2c4cfb0be6a0aa91894b195e
 version: 0.1.0
 date-released: '2025-04-07'
+preferred-citation:
+  type: article
+  authors:
+  - given-names: Marc
+    family-names: Serra-Peralta
+    email: m.serraperalta@tudeflt.nl
+  - given-names: Mackenzie H. Shaw
+    family-names: Shaw
+  - given-names: Barbara M.
+    family-names: Terhal
+  doi: "10.48550/arXiv.2505.13599"
+  url: https://arxiv.org/abs/2505.13599
+  journal: "arXiv preprint"
+  month: 5
+  title: "Decoding across transversal Clifford gates in the surface code"
+  year: 2025
