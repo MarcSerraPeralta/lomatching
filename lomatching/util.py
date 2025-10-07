@@ -1,238 +1,266 @@
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 
+from itertools import chain
 import numpy as np
+import numpy.typing as npt
 import stim
-from qec_util.mod2 import decompose_into_basis
+
+Coords = tuple[float, ...]
 
 
-RESET_OPS = ["R", "RX", "RY", "RZ"]
+def get_reliable_observables(circuit: stim.Circuit) -> list[set[int]]:
+    """
+    Note: this function assumes that, if a logical qubit is being measured or
+    reset between QEC rounds, then the logical measurement or logical reset
+    is the only operation it is doing between the QEC rounds. For example, the
+    following circuits are not allowed: `TICK - R 0 - H 0 - TICK` and
+    `TICK - M 0 - R 0 - TICK`. The corresponding valid circuits would be
+    `TICK - R 0 - TICK - H 0 - TICK` and `TICK - M 0 - TICK - R 0 - TICK`.
+
+    THAT IT IS NOT NECESSARY IF THE ENCODED CIRCUIT IS GIVEN!!!
+
+    1) get obsrving regions (using stim.Circuit.detecting_regions)
+    2) get "reset stim.Pauli"
+    3) apply algorithm from our paper to get the fragile and reliable observables
+    """
+    return
 
 
 def get_observing_region(
-    circuit: stim.Circuit, observable: Sequence[int]
-) -> np.ndarray:
-    """
-    Returns the observing region for the specified observable.
+    circuit: stim.Circuit, observable: Collection[int] | int
+) -> dict[int, stim.PauliString]:
+    """Returns the observing region of an observable in a circuit.
 
     Parameters
     ----------
     circuit
-        Circuit with ``TICK``s and measurements.
+        Stim circuit with the observable definitions.
     observable
-        List of measurement IDs in the circuit that correspond to the observable.
-        The ID corresponds to the index of the measurement in the circuit.
-        For example, ID = ``i`` corresponds to the ``i``th measurement in the circuit,
-        starting from ``i = 0``.
+        List of observables in the circuit that define the observable whose
+        observing region will be returned. It can also be a single observable.
+        The observables are identified with their index and must be present
+        in `circuit`.
 
     Returns
     -------
     obs_region
-        Pauli support of the observing region in the ``TICK``s of ``circuit``.
-        Therefore, ``obs_region`` has lenght equal to ``circuit.num_ticks`` and
-        its elements correspond to a Pauli string of length ``circuit.num_qubits``.
-
-    Notes
-    -----
-    This function is intended for unencoded circuits.
+        Observing region of `observable` defined as a dictionary whose keys
+        refer to the `TICK` indices in `circuit` and values correspond to the
+        `stim.PauliString` at the corresponding `TICK` location. If a `stim.PauliString`
+        is empty at the `TICK`, the corresponding `TICK` index will not be present
+        in the dictionary. See `stim.Circuit.detecting_regions` for more information.
     """
     if not isinstance(circuit, stim.Circuit):
         raise TypeError(
-            f"'circuit' must be a stim.Circuit, but {type(circuit)} was given."
+            f"'circuit' must be stim.Circuit, but {type(circuit)} was given."
         )
-    circuit = circuit.flattened()
-    if not isinstance(observable, Sequence):
+    if isinstance(observable, int):
+        observable = [observable]
+    if not isinstance(observable, Collection):
         raise TypeError(
-            f"'observable' must be a Sequence, but {type(observable)} was given."
+            f"'observable' must be a Collection, but {type(observable)} was given."
         )
-    if any(not isinstance(i, int) for i in observable):
-        raise TypeError("The elements in observable must be integers.")
-    if any(i > circuit.num_measurements - 1 for i in observable):
+    if any(not isinstance(o, int) for o in observable):
+        raise TypeError("Elements in 'observable' must be integers.")
+    if any(o >= circuit.num_observables for o in observable):
         raise TypeError(
-            "The measurement IDs must be smaller than the number of measurements in the circuit."
+            "Elements in 'observable' must be valid observable indices for 'circuit'."
         )
 
-    # use the stim.Circuit.detecting_regions to compute the observing regions
-    obs_id = circuit.num_detectors
-    det_instr = stim.CircuitInstruction(
-        name="DETECTOR",
-        gate_args=[],
-        targets=[stim.target_rec(-circuit.num_measurements + i) for i in observable],
-    )
-    circuit.append(det_instr)
-    det_region = circuit.detecting_regions(
-        targets=[stim.DemTarget(f"D{obs_id}")], ignore_anticommutation_errors=True
-    )[stim.DemTarget(f"D{obs_id}")]
+    # remove all observables from the circuit and define the given observable.
+    # a trick is to not move the observable definitions and change its argument
+    # to the same, so that definitions get XORed by stim.
+    new_circuit = stim.Circuit()
+    for instr in circuit.flattened():
+        if instr.name != "OBSERVABLE_INCLUDE":
+            new_circuit.append(instr)
+            continue
 
-    # format output to one string character array
-    obs_region = np.empty((circuit.num_ticks, circuit.num_qubits), dtype="S1")
-    obs_region.fill("I")
-    for tick, pauli in det_region.items():
-        x, z = pauli.to_numpy()
-        for n, (xi, zi) in enumerate(zip(x, z)):
-            if xi and zi:
-                p = "Y"
-            elif xi:
-                p = "X"
-            elif zi:
-                p = "Z"
-            else:
-                p = "I"
-            obs_region[tick, n] = p
+        if instr.gate_args_copy()[0] not in observable:
+            continue
 
-    return obs_region
+        new_obs = stim.CircuitInstruction(
+            name="OBSERVABLE_INCLUDE", gate_args=[0], targets=instr.targets_copy()
+        )
+        new_circuit.append(new_obs)
+
+    l0_target = stim.DemTarget("L0")
+    return new_circuit.detecting_regions(targets=[l0_target])[l0_target]
 
 
-def get_measurement_decomposition(
-    circuit: stim.Circuit,
-) -> dict[int, None | tuple[int, tuple[int, ...]]]:
-    """
-    Returns a measurement decomposition in terms of reliable and unreliable
-    observables.
+def get_subgraph(
+    unencoded_circuit: stim.Circuit,
+    encoded_circuit: stim.Circuit,
+    reliable_obs: Collection[int] | int,
+    stab_coords: Sequence[dict[str, Collection[Coords]]],
+) -> tuple[stim.DetectorErrorModel, npt.NDArray[np.int64]]:
+    """Returns the (decomposed) detector error model and detector indices
+    inside the given observable's observing region.
 
     Parameters
     ----------
-    circuit
-        Stim circuit with measurements. This circuit must correspond to an
-        unencoded circuit and contain TICKs after every operation layer.
+    unencoded_circuit
+        Unencoded (bare, logical) circuit. `TICK`s represent QEC rounds.
+        Conditional gates based on outcomes are not supported. It must contain
+        the same observable definitions as `encoded_circuit` (with the same
+        observable indices).
+    encoded_circuit
+        Encoded (physical) circuit. It must contain the detectors and
+        observables used for decoding. The detectors must contain coordinates
+        and their last element must be the index of the corresponding
+        QEC round or `TICK` of `unencoded_circuit`. `TICK`s are not
+        important in `encoded_circuit`. The QEC code must be CSS.
+    reliable_obs
+        Reliable observable corresponding to a collection of observable indices
+        (or a single index) from `encoded_circuit` and `unencoded_circuit`.
+    stab_coords
+        Coordinates of the X and Z stabilizers defined in `encoded_circuit` for
+        each of the (logical) qubits defined in `unencoded_circuit`. The `i`th
+        element in the list must correspond to qubit index `i` in `unencoded_circuit`.
+        Each element must be a dictionary with keys `"X"` and `"Z"`, and values
+        corresponding to the ancilla coordinates of the specific stabilizer type.
 
     Returns
     -------
-    meas_decom
-        Measurement decomposition corresponding to a dictionary with keys
-        being all measurement IDs (i.e. index of the measurement in the circuit,
-        starting from 0) and with values corresponding to a list of:
-            - ``tuple[int]`` corresponding to reliable observables
-            - ``int`` corresponding to outcome from the specified measurement
-        To compute the outcome from a measurement, one needs to perform the XOR
-        of the outcomes described in the corresponding list, unless it is ``None``,
-        which then it corresponds to an unreliable observable and its outcome
-        needs to be randomly sampled from a 50-50 distribution. If only one int
-        is present in the list, then the measurement corresponds to a reliable
-        observable and can be decoded normally.
-        See Notes for an example.
-
-    Notes
-    -----
-    An example of measurement decomposition for the following Bell state preparation
-    and measurement:
-
-        |+> --@-- MZ m0
-              |
-        |0> --X-- MZ m1
-
-    is the following: ``{0: None, 1: ((0,1), 0)}``. This means that m0 is unreliable
-    and can be sampled from a 50-50 distribution, while m1 needs to be obtained from
-    decoding the reliable observable {m0, m1} and XORing with the outcome of m0.
-    There exist another measurement decomposition: ``{0: ((0,1), 1), 1: (None,)}``.
+    dem
+        Detector error model inside `reliable_obs` observing region.
+        The DEM only contains the reliable observable.
+    det_inds
+        Detector indices inside `reliable_obs` observing region.
+        The length of `det_inds` matches the number of detectors in `dem`.
     """
-    reset_matrices = get_reset_matrices(circuit)
-
-    meas_decom = {}
-    unreliable_reset_support = []
-    for ind in range(circuit.num_measurements):
-        obs_region = get_observing_region(circuit, [ind])
-        reset_support = [anticommute(obs_region, reset) for reset in reset_matrices]
-
-        if sum(reset_support) == 0:
-            # reliable measurement
-            meas_decom[ind] = (ind,)
-            continue
-
-        rank = np.linalg.matrix_rank(
-            np.array(unreliable_reset_support + [reset_support], dtype=int)
-        )
-        if rank == len(unreliable_reset_support) + 1:
-            # cannot cancel out the observing regions in the anticommuting resets,
-            # thus this is an unreliable observable
-            meas_decom[ind] = None
-            unreliable_reset_support.append(reset_support)
-            continue
-
-        decom = decompose_into_basis(
-            vector=reset_support, basis=unreliable_reset_support
-        )
-        meas_decom[ind] = (tuple(decom + [ind]), *decom)
-
-    return meas_decom
-
-
-def get_reset_matrices(circuit: stim.Circuit) -> tuple[np.ndarray]:
-    """
-    Returns the list of matrices describing the resets in the circuit.
-
-    Parameters
-    ----------
-    circuit
-        Stim circuit with resets. Resets cannot appear after the last TICK.
-
-    Returns
-    -------
-    reset_matrices
-        List of matrices with shape ``(circuit.num_ticks, circuit.num_qubits)``
-        where the entries indicate the type of reset that occurred before a given
-        TICK and qubit. If no reset is present, the element is ``"I"``.
-        TICK indices start at 0.
-    """
-    if not isinstance(circuit, stim.Circuit):
+    if not isinstance(unencoded_circuit, stim.Circuit):
         raise TypeError(
-            f"'circuit' must be a stim.Circuit, but {type(circuit)} was given."
+            "'unencoded_circuit' must be a stim.Circuit, "
+            f"but {type(unencoded_circuit)} was given."
         )
-    circuit = circuit.flattened()
+    if not isinstance(encoded_circuit, stim.Circuit):
+        raise TypeError(
+            "'encoded_circuit' must be a stim.Circuit, "
+            f"but {type(encoded_circuit)} was given."
+        )
+    if unencoded_circuit.num_observables != encoded_circuit.num_observables:
+        raise ValueError(
+            "'unencoded_circuit' and 'encoded_circuit' must have the same observables."
+        )
+    num_obs = encoded_circuit.num_observables
+    num_dets = encoded_circuit.num_detectors
 
-    reset_matrices = []
-    curr_tick = 0
-    for instr in circuit:
-        if instr.name == "TICK":
-            curr_tick += 1
+    if isinstance(reliable_obs, int):
+        reliable_obs = [reliable_obs]
+    if not isinstance(reliable_obs, Collection):
+        raise TypeError(
+            "'reliable_obs' must be a Collection, but {type(reliable_obs)} was given."
+        )
+    if any(not (isinstance(o, int) and o < num_obs) for o in reliable_obs):
+        raise TypeError(
+            "Elements in 'reliable_obs' must be valid observable indices in 'encoded_circuit'."
+        )
+
+    if not isinstance(stab_coords, Sequence):
+        raise TypeError(
+            f"'stab_coords' must be a Sequence, but {type(stab_coords)} was given."
+        )
+    if len(stab_coords) != unencoded_circuit.num_qubits:
+        raise ValueError(
+            "Lenght of 'stab_coords' must match the number of qubits in 'unencoded_circuit'."
+        )
+    if any(not isinstance(l, dict) for l in stab_coords):
+        raise TypeError("Elements of 'stab_coords' must be dictionaries.")
+    if any(set(l.keys()) < set(["X", "Z"]) for l in stab_coords):
+        raise ValueError(
+            "Elements of 'stab_coords' must have 'X' and 'Z' as dict keys."
+        )
+    for stab_type in ["X", "Z"]:
+        if any(not isinstance(l[stab_type], Collection) for l in stab_coords):
+            raise TypeError(
+                "Elements of 'stab_coords' must have collections as dict values."
+            )
+        for coord in chain(*[l[stab_type] for l in stab_coords]):
+            if not isinstance(coord, tuple):
+                raise TypeError("Coordinates must be tuples.")
+            if any(not isinstance(i, float) for i in coord):
+                raise TypeError("Coordinates must be tuple[float]")
+
+    det_to_coords = encoded_circuit.get_detector_coordinates()
+    if any(c == [] for c in det_to_coords.values()):
+        raise ValueError("All detectors must have coordinates.")
+    if any(len(c) < 2 for c in det_to_coords.values()):
+        raise ValueError("All detectors must contain at least two coordinates.")
+    if any(not c[-1].is_integer() for c in det_to_coords.values()):
+        raise ValueError("Last coordinate of all detectors must be an integer.")
+    if max([c[-1] for c in det_to_coords.values()]) != num_dets:
+        raise ValueError(
+            "Number of TICKs in `unencoded_circuit` must match the detector coordinate"
+            " for number of rounds"
+        )
+
+    z_stab_coords = set(chain(*[l["X"] for l in stab_coords]))
+    x_stab_coords = set(chain(*[l["Z"] for l in stab_coords]))
+    if len(z_stab_coords.intersection(x_stab_coords)) != 0:
+        raise ValueError("Coordinate(s) appear in both X and Z type stabilizers.")
+    all_stab_coords_circuit = [
+        tuple(map(float, c[:-1])) for c in det_to_coords.values()
+    ]
+    all_stab_coords = z_stab_coords.union(x_stab_coords)
+    if set(all_stab_coords) < set(all_stab_coords_circuit):
+        raise ValueError(
+            "Not all detectors of 'encoded_circuit' are speficied in 'stab_coords'."
+        )
+
+    # create mapping for fast detector selection
+    coords_to_stab: dict[Coords, tuple[int, str]] = {}
+    for l_ind, l in enumerate(stab_coords):
+        for stab_type in ["X", "Z"]:
+            for coord in l[stab_type]:
+                coords_to_stab[coord] = (l_ind, stab_type)
+
+    obs_region = get_observing_region(unencoded_circuit, reliable_obs)
+
+    sub_circuit = stim.Circuit()
+    det_inds = []
+    current_det = 0
+    # need to create new observable corresponding to the reliable observable.
+    # moving the definition of the observables messes with the rec[-i] definition
+    # therefore I need to take care of how many measurements are between the definition
+    # and the end of the circuit (where I am going to define the reliable observable)
+    observables: list[stim.CircuitInstruction] = []
+    measurements: list[int] = []
+
+    for i, instr in enumerate(encoded_circuit.flattened()):
+        if instr.name not in ["OBSERVABLE_INCLUDE", "DETECTOR"]:
+            sub_circuit.append(instr)
             continue
-        if instr.name not in RESET_OPS:
+        if instr.name == "OBSERVABLE_INCLUDE":
+            observables.append(instr)
+            measurements.append(encoded_circuit[i:].num_measurements)
             continue
-        if len(instr.targets_copy()) == 0:
-            # reset affecting no qubit
+
+        coord = list(map(float, instr.gate_args_copy()))
+        coord, tick = tuple(coord[:-1]), int(coord[-1])
+        if tick not in obs_region:
             continue
 
-        if curr_tick == circuit.num_ticks:
-            raise ValueError("A reset appears after the last TICK.")
+        qubit_ind, det_type = coords_to_stab[coord]
+        # stim uses encoding 0=I, 1=X, 2=Y, 3=Z.
+        if (det_type == "Z") and (obs_region[tick][qubit_ind] in [3, 2]):
+            sub_circuit.append(instr)
+        if (det_type == "X") and (obs_region[tick][qubit_ind] in [1, 2]):
+            sub_circuit.append(instr)
 
-        if instr.name in ["R", "RZ"]:
-            r = "Z"
-        elif instr.name == "RX":
-            r = "X"
-        elif instr.name == "RY":
-            r = "Y"
+        det_inds.append(current_det)
+        current_det += 1
 
-        for gate_target in instr.targets_copy():
-            matrix = np.empty((circuit.num_ticks, circuit.num_qubits), dtype="S1")
-            matrix.fill("I")
-            matrix[curr_tick, gate_target.qubit_value] = r
-
-        reset_matrices.append(matrix)
-
-    return tuple(reset_matrices)
-
-
-def anticommute(matrix1: np.ndarray, matrix2: np.ndarray) -> int:
-    """
-    Returns ``1`` if the two Pauli matrices anticommute and ``0`` otherwise.
-
-    Parameters
-    ----------
-    matrix1, matrix2
-        Matrices with elements corresponding to ``"I"``, ``"X"``, ``"Y"``, ``"Z"```.
-
-    Returns
-    -------
-    anticommute
-        ``1`` if the two matrices anticommute and ``0`` otherwise.
-    """
-    anticommute = 0
-    anticommute ^= (
-        np.sum(((matrix1 == b"Y") | (matrix1 == b"Z")) & (matrix2 == b"X")) % 2
+    # create the reliable observable definition
+    new_targets: list[int] = []
+    for obs_ind in reliable_obs:
+        targets = observables[obs_ind].targets_copy()
+        targets = [t.value - measurements[obs_ind] for t in targets]
+        new_targets += targets
+    new_obs = stim.CircuitInstruction(
+        "OBSERVABLE_INCLUDE", [stim.target_rec(t) for t in new_targets], [0]
     )
-    anticommute ^= (
-        np.sum(((matrix1 == b"X") | (matrix1 == b"Z")) & (matrix2 == b"Y")) % 2
-    )
-    anticommute ^= (
-        np.sum(((matrix1 == b"X") | (matrix1 == b"Y")) & (matrix2 == b"Z")) % 2
-    )
-    return anticommute
+    sub_circuit.append(new_obs)
+
+    dem = sub_circuit.detector_error_model(decompose_errors=True)
+    return dem, np.array(det_inds, dtype=int)

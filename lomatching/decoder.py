@@ -1,189 +1,109 @@
 import numpy as np
+import numpy.typing as npt
 import stim
 from pymatching import Matching
 
-from .greedy_algorithm import greedy_algorithm
+from .util import get_reliable_observables as get_reliable_obs
+from .util import get_subgraph, Coords
 
 
 class MoMatching:
     """
-    Decodes all observables in a logical Clifford circuit run on a surface code
-    with only reliable observables and qubit only measured at the end of the circuit.
+    Decodes all reliable observables in an (unconditional) logical Clifford
+    circuit with `pymatching.Matching`.
     """
 
     def __init__(
         self,
-        dem: stim.DetectorErrorModel,
         unencoded_circuit: stim.Circuit,
-        logicals: list[list[str]],
-        stab_coords: dict[str, list[tuple[float | int, float | int, float | int]]],
-        detector_frame: str,
+        encoded_circuit: stim.Circuit,
+        stab_coords: list[dict[str, list[Coords]]],
     ):
         """
-        Initializes ``MoMatching``.
+        Initializes a ``MoMatching`` decoder.
 
         Parameters
         ----------
-        dem
-            Detector error model.
-            The ``(x, y, t)`` coordinates must be specified for every detector,
-            with ``t`` an integer except representing the QEC round. For the
-            detectors built from data-qubit outcomes (from logical measurements),
-            they need to be placed at ``t+1/2``, with ``t`` the integer of the
-            last QEC round. Gauge detectors in resets must also be specified.
         unencoded_circuit
-            Unencoded (bare) circuit with only MZ, RZ, MX, RX, S, H, X, Z, Y, I, CNOT gates.
-            Circuit must start with all qubits being reset and end with all qubits
-            being measured. TICKs represent QEC cycles.
-            Conditional gates based on outcomes are not allowed.
-            Qubits can only perform a single operation inbetween QEC cycles.
-            The next operation of a measurement must be a reset.
-            It can be a ``stim.Circuit`` or a np.ndarray (see ``get_ops``).
-        logicals
-            Definition of the reliable logicals as done in the circuit.
-            For example, if one has defined L0 = Z0*Z1, then ``logicals``
-            should be ``[["Z0", "Z1"]]``. The logical ``Lk`` must be defined in
-            the ``k``th entry of the ``logicals`` list.
+            Unencoded (bare, logical) circuit. `TICK`s represent QEC rounds.
+            Conditional gates based on outcomes are not supported. It must contain
+            the same observable definitions as `encoded_circuit` (with the same
+            observable indices).
+        encoded_circuit
+            Encoded (physical) circuit. It must contain the detectors and
+            observables used for decoding. The detectors must contain coordinates
+            and their last element must be the index of the corresponding
+            QEC round or `TICK` of `unencoded_circuit`. `TICK`s are not
+            important in `encoded_circuit`. The QEC code must be CSS.
         stab_coords
-            Dictionary with keys corresponding to ``"Z0"``, ``"X0"``, ``"Z1"``,
-            ``"X1"``... (with ``Zk`` referring to the Z-type stabilizers for the
-            ``k``th logical qubit and similarly for ``Xk``) and the values being
-            a list of the ``(x, y)`` coordinates of all corresponding stabilizers.
-            The observable IDs must also match with the qubit indices from ``circuit``.
-        detector_frame
-            Frame used when defining the detectors. Must be either ``"pre-gate"``
-            or ``"post-gate"``.
+            Coordinates of the X and Z stabilizers defined in `encoded_circuit` for
+            each of the (logical) qubits defined in `unencoded_circuit`. The `i`th
+            element in the list must correspond to qubit index `i` in `unencoded_circuit`.
+            Each element must be a dictionary with keys `"X"` and `"Z"`, and values
+            corresponding to the ancilla coordinates of the specific stabilizer type.
 
         Notes
         -----
-        See example of usage in the ``README.md`` file.
+        See example in the ``README.md`` file.
         """
-        det_to_coords = dem.get_detector_coordinates()
-        if any(c == [] for c in det_to_coords.values()):
-            raise ValueError("All detectors must have coordinates.")
-        coords_to_det = {tuple(v): k for k, v in det_to_coords.items()}
+        self._unencoded_circuit: stim.Circuit = unencoded_circuit
+        self._encoded_circuit: stim.Circuit = encoded_circuit
 
-        self.dem = dem
-        self.unencoded_circuit = unencoded_circuit
-        self.logicals = logicals
-        self.stab_coords = stab_coords
-        self.detector_frame = detector_frame
-        self.det_to_coords = det_to_coords
-        self.coords_to_det = coords_to_det
-        self.detector_frame = detector_frame
-
-        self.decoding_subgraphs = {}
-        self.mwpm_subgraphs = {}
-
-        self._prepare_decoder()
+        self._reliable_obs: list[set[int]] = get_reliable_obs(unencoded_circuit)
+        self._matching_subgraphs: list[Matching] = []
+        self._det_inds_subgraphs: list[npt.NDArray[np.int64]] = []
+        for obs in self._reliable_obs:
+            subgraph, det_inds = get_subgraph(
+                unencoded_circuit, encoded_circuit, obs, stab_coords
+            )
+            self._matching_subgraphs.append(Matching(subgraph))
+            self._det_inds_subgraphs.append(det_inds)
 
         return
 
-    def _prepare_decoder(self):
-        """
-        Prepares all the variables required for running ``MoMatching.decode``
-        and ``MoMatching.decode_batch``.
-        """
-        for k, logical in enumerate(self.logicals):
-            tracks = greedy_algorithm(
-                self.unencoded_circuit,
-                detector_frame=self.detector_frame,
-                r_start=999_999_999,
-                t_start=get_initial_tracks(logical, self.unencoded_circuit.num_qubits),
+    @property
+    def reliable_observables(self) -> list[set[int]]:
+        """Reliable observables in the circuit, where each one is given as a set
+        integers corresponding to observable indicies from the circuit."""
+        return [set(o) for o in self._reliable_obs]
+
+    @property
+    def num_detectors(self) -> int:
+        return self._encoded_circuit.num_detectors
+
+    def decode(self, syndrome: npt.NDArray[np.int64 | np.bool]) -> npt.NDArray[np.bool]:
+        """Decodes the given syndrome vector and returns the corrections for
+        the reliable observables, see `MoMatching.reliable_observables`."""
+        if len(syndrome.shape) != 1:
+            raise TypeError(
+                f"'syndrome' must be a vector, but shape {syndrome.shape} was given."
             )
-            self.decoding_subgraphs[k] = get_subgraph(
-                self.dem, tracks, self.stab_coords, self.coords_to_det, k
+
+        obs_corection = np.zeros(len(self.reliable_observables), dtype=bool)
+        for k, _ in enumerate(self.reliable_observables):
+            subsyndrome = syndrome[self._det_inds_subgraphs[k]]
+            obs_corection[k] = self._matching_subgraphs[k].decode(subsyndrome)[0]
+        return obs_corection
+
+    def decode_batch(
+        self, syndrome: npt.NDArray[np.int64 | np.bool]
+    ) -> npt.NDArray[np.bool]:
+        """Decodes the given batch of syndromes and returns the corrections for
+        the reliable observables, see `MoMatching.reliable_observables`."""
+        if len(syndrome.shape) != 2:
+            raise TypeError(
+                f"'syndrome' must be a matrix, but shape {syndrome.shape} was given."
             )
-            self.mwpm_subgraphs[k] = Matching(self.decoding_subgraphs[k])
+        if syndrome.shape[1] != self.num_detectors:
+            raise TypeError(
+                "'syndrome.shape[1]' must match the number of detectors "
+                f"({self.num_detectors}), but {syndrome.shape[1]} was given."
+            )
 
-        return
-
-    def decode(self, syndrome: np.ndarray) -> np.ndarray:
-        """Decodes the syndrome of a single run of the logical circuit."""
-        logical_correction = np.zeros(len(self.logicals))
-        for k, _ in enumerate(self.logicals):
-            prediction = self.mwpm_subgraphs[k].decode(syndrome)
-            logical_correction[k] = prediction[k]
-        return logical_correction
-
-    def decode_batch(self, syndrome: np.ndarray) -> np.ndarray:
-        """Decodes the syndrome of a multiple runs of the logical circuit."""
-        logical_correction = np.zeros((len(syndrome), len(self.logicals)))
-        for k, _ in enumerate(self.logicals):
-            prediction = self.mwpm_subgraphs[k].decode_batch(syndrome)
-            logical_correction[:, k] = prediction[:, k]
-        return logical_correction
-
-
-def get_initial_tracks(logical: list[str], num_qubits: int) -> np.ndarray:
-    """Returns initial track indices for ``greedy_algorithm``."""
-    shift = {"X": 0, "Z": 1}
-    t_start = [2] * (2 * num_qubits)
-    for l in logical:
-        index = 2 * int(l[1:]) + shift[l[0]]
-        t_start[index] = 1
-    return np.array(t_start)
-
-
-def get_subgraph(
-    dem: stim.DetectorErrorModel,
-    tracks: np.ndarray,
-    stab_coords: dict[str, list[tuple[float | int, float | int, float | int]]],
-    coords_to_det: dict[tuple[float, float, float], int],
-    logical_id: int,
-) -> stim.DetectorErrorModel:
-    """Returns the decoding subgraph for the specified logical."""
-    dets_track_1 = []
-    for t, slice in enumerate(tracks):
-        if t == len(tracks) - 1:
-            # logical measurements
-            t -= 0.5
-
-        for k, s in enumerate(slice):
-            if s == 1:
-                # track 1
-                prefix = "Z" if k % 2 == 1 else "X"
-                label = f"{prefix}{k//2}"
-                dets_track_1 += [
-                    coords_to_det[(*list(map(float, xy)), float(t))]
-                    for xy in stab_coords[label]
-                ]
-    dets_track_1 = set(dets_track_1)
-
-    subdem = stim.DetectorErrorModel()
-    for dem_instr in dem.flattened():
-        if dem_instr.type != "error":
-            subdem.append(dem_instr)
-            continue
-
-        det_ids = set(
-            i.val for i in dem_instr.targets_copy() if i.is_relative_detector_id()
+        obs_corection = np.zeros(
+            (len(syndrome), len(self.reliable_observables)), dtype=bool
         )
-        subdet_ids = det_ids.intersection(dets_track_1)
-        if len(subdet_ids) == 0:
-            continue
-
-        log_ids = set(
-            i.val for i in dem_instr.targets_copy() if i.is_logical_observable_id()
-        )
-        sublog_ids = set([logical_id]) if logical_id in log_ids else set()
-
-        targets = [stim.target_relative_detector_id(d) for d in subdet_ids]
-        targets += [stim.target_logical_observable_id(l) for l in sublog_ids]
-
-        new_instr = stim.DemInstruction(
-            "error", args=dem_instr.args_copy(), targets=targets
-        )
-        subdem.append(new_instr)
-
-    # this is just for pymatching to not complain about "no perfect matching could
-    # not be found" because inactive nodes are not connected
-    all_nodes = set(range(dem.num_detectors))
-    dets_no_track_1 = all_nodes.difference(dets_track_1)
-    for det in dets_no_track_1:
-        new_instr = stim.DemInstruction(
-            "error", args=[0.5], targets=[stim.target_relative_detector_id(det)]
-        )
-        subdem.append(new_instr)
-
-    return subdem
+        for k, _ in enumerate(self.reliable_observables):
+            subsyndrome = syndrome[:, self._det_inds_subgraphs[k]]
+            obs_corection[:, k] = self._matching_subgraphs[k].decode(subsyndrome)[:, 0]
+        return obs_corection
