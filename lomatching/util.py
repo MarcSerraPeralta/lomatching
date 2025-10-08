@@ -3,32 +3,123 @@ from collections.abc import Collection, Sequence
 from itertools import chain
 import numpy as np
 import numpy.typing as npt
+from galois import GF2
 import stim
 
 Coords = tuple[float, ...]
+PauliRegion = dict[int, stim.PauliString]
+
+RESET_INSTRS = ["R", "RX", "RY", "RZ", "MR", "MRX", "MRY", "MRZ"]
 
 
 def get_reliable_observables(circuit: stim.Circuit) -> list[set[int]]:
-    """
-    Note: this function assumes that, if a logical qubit is being measured or
-    reset between QEC rounds, then the logical measurement or logical reset
-    is the only operation it is doing between the QEC rounds. For example, the
-    following circuits are not allowed: `TICK - R 0 - H 0 - TICK` and
-    `TICK - M 0 - R 0 - TICK`. The corresponding valid circuits would be
-    `TICK - R 0 - TICK - H 0 - TICK` and `TICK - M 0 - TICK - R 0 - TICK`.
+    """Returns a complete set of reliable observables.
 
-    THAT IT IS NOT NECESSARY IF THE ENCODED CIRCUIT IS GIVEN!!!
+    Parameters
+    ----------
+    circuit
+        Encoded or unencoded circuit. Stim reset operations for any qubit must
+        be the only operation done on that qubit between `TICK`s. Qubits must
+        be explicitly reset.
 
-    1) get obsrving regions (using stim.Circuit.detecting_regions)
-    2) get "reset stim.Pauli"
-    3) apply algorithm from our paper to get the fragile and reliable observables
+    Returns
+    -------
+    observables
+        Complete set of reliable observables in 'circuit'. The observables are
+        specified using their observble index from 'circuit'.
     """
-    return
+    if not isinstance(circuit, stim.Circuit):
+        raise TypeError(
+            f"'circuit' must be a stim.Circuit, but {type(circuit)} was given."
+        )
+
+    resets = get_all_reset_paulistrings(circuit)
+    obs_regions = {
+        obs_id: get_observing_region(circuit, obs_id)
+        for obs_id in range(circuit.num_observables)
+    }
+
+    # get a basis of the null space to obtain the missing reliable observables.
+    # A * observables = resets  --> null space of A = reliable observables,
+    # where A[r, o] = 1 if observable o and reset r anticommute, otherwise 0.
+    matrix = np.zeros((len(resets), len(obs_regions)), dtype=int)
+    for obs_id, obs_region in obs_regions.items():
+        for reset_id, reset in resets.items():
+            if not commute(reset, obs_region):
+                matrix[reset_id, obs_id] = 1
+
+    null_space = GF2(matrix).null_space()
+    reliable_obs: list[set[int]] = []
+    for k in range(len(null_space)):
+        vector = null_space[k].tolist()
+        inds = [i for i, v in enumerate(vector) if v != 0]
+        reliable_obs.append(set(inds))
+
+    return reliable_obs
+
+
+def commute(region_a: PauliRegion, region_b: PauliRegion) -> bool:
+    """Checks if two Pauli regions commute."""
+    common_ticks = set(region_a).intersection(region_b)
+
+    tick_commute: list[bool] = []
+    for tick in common_ticks:
+        tick_commute.append(region_a[tick].commutes(region_b[tick]))
+
+    return bool(sum(tick_commute) % 2)
+
+
+def get_all_reset_paulistrings(circuit: stim.Circuit) -> dict[int, PauliRegion]:
+    """Returns all the backpropagated reset regions for all resets in the given circuit.
+
+    Parameters
+    ----------
+    circuit
+        Encoded or unencoded circuit. Stim reset operations for any qubit must
+        be the only operation done on that qubit between `TICK`s. Qubits must
+        be explicitly reset.
+
+    Returns
+    -------
+    resets
+        Dictionary whose keys are the reset index in the given circuit
+        and values are the corresponding backpropagated reset region.
+    """
+    if not isinstance(circuit, stim.Circuit):
+        raise TypeError(
+            f"'circuit' must be a stim.Circuit, but {type(circuit)} was given."
+        )
+
+    resets: dict[int, PauliRegion] = {}
+    current_reset = 0
+    current_tick = 0
+    for instr in circuit.flattened():
+        if instr.name == "TICK":
+            current_tick += 1
+            continue
+        elif instr.name not in RESET_INSTRS:
+            continue
+
+        for qubit_id in instr.targets_copy():
+            reset_pauli = "Z"
+            if instr.name[-1] == "X":
+                reset_pauli = "X"
+            elif instr.name[-1] == "Y":
+                reset_pauli = "Y"
+
+            reset_paulistring = stim.PauliString(circuit.num_qubits)
+            reset_paulistring[qubit_id.value] = reset_pauli
+            reset_region = {current_tick: reset_paulistring}
+
+            resets[current_reset] = reset_region
+            current_reset += 1
+
+    return resets
 
 
 def get_observing_region(
     circuit: stim.Circuit, observable: Collection[int] | int
-) -> dict[int, stim.PauliString]:
+) -> PauliRegion:
     """Returns the observing region of an observable in a circuit.
 
     Parameters

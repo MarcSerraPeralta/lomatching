@@ -1,3 +1,5 @@
+from collections.abc import Sequence, Collection
+
 import numpy as np
 import numpy.typing as npt
 import stim
@@ -17,7 +19,7 @@ class MoMatching:
         self,
         unencoded_circuit: stim.Circuit,
         encoded_circuit: stim.Circuit,
-        stab_coords: list[dict[str, list[Coords]]],
+        stab_coords: Sequence[dict[str, Collection[Coords]]],
     ):
         """
         Initializes a ``MoMatching`` decoder.
@@ -50,6 +52,10 @@ class MoMatching:
         self._encoded_circuit: stim.Circuit = encoded_circuit
 
         self._reliable_obs: list[set[int]] = get_reliable_obs(unencoded_circuit)
+        self._encoded_circuit_with_only_reliable_obs: stim.Circuit = (
+            remove_obs_except_reliables(encoded_circuit, self._reliable_obs)
+        )
+
         self._matching_subgraphs: list[Matching] = []
         self._det_inds_subgraphs: list[npt.NDArray[np.int64]] = []
         for obs in self._reliable_obs:
@@ -66,6 +72,11 @@ class MoMatching:
         """Reliable observables in the circuit, where each one is given as a set
         integers corresponding to observable indicies from the circuit."""
         return [set(o) for o in self._reliable_obs]
+
+    @property
+    def encoded_circuit_with_only_reliable_observables(self) -> stim.Circuit:
+        """This circuit is useful for sampling errors."""
+        return self._encoded_circuit_with_only_reliable_obs.copy()
 
     @property
     def num_detectors(self) -> int:
