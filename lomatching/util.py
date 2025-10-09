@@ -10,6 +10,7 @@ Coords = tuple[float, ...]
 PauliRegion = dict[int, stim.PauliString]
 
 RESET_INSTRS = ["R", "RX", "RY", "RZ", "MR", "MRX", "MRY", "MRZ"]
+MEAS_INSTRS = ["M", "MX", "MY", "MZ", "MR", "MRX", "MRY", "MRZ"]
 
 
 def get_reliable_observables(circuit: stim.Circuit) -> list[set[int]]:
@@ -179,6 +180,114 @@ def get_observing_region(
     return new_circuit.detecting_regions(targets=[l0_target])[l0_target]
 
 
+def remove_obs_except(
+    circuit: stim.Circuit, observables: Sequence[Collection[int]]
+) -> stim.Circuit:
+    """Removes all observables from the circuit except the specified ones.
+
+    Parameters
+    ----------
+    circuit
+        Circuit with observables.
+    observables
+        List of observables consisting of collections of observable indicies from
+        the circuit.
+
+    Returns
+    -------
+    new_circuit
+        Circuit with only the observables in 'observables'.
+    """
+    if not isinstance(circuit, stim.Circuit):
+        raise TypeError(
+            f"'circuit' must be a stim.Circuit, but {type(circuit)} was given."
+        )
+    if not isinstance(observables, Sequence):
+        raise TypeError(
+            f"'observables' must be a Sequence, but {type(observables)} was given."
+        )
+
+    if any(not isinstance(o, Collection) for o in observables):
+        raise TypeError("Elements in 'observables' must be Collection.")
+    indices = [i for o in observables for i in o]
+    if any(not isinstance(i, int) for i in indices):
+        raise TypeError("Elements inside each element in 'observables' must be ints.")
+    if max(indices) > circuit.num_observables - 1:
+        raise ValueError("Index cannot be larger than 'circuit.num_observables-1'.")
+
+    new_circuit = stim.Circuit()
+    circuit_observables: list[stim.CircuitInstruction] = []
+    # moving the definition of the observables messes with the rec[-i] definition
+    # therefore I need to take care of how many measurements are between the definition
+    # and the end of the circuit (where I am going to define the observables)
+    measurements: list[int] = []
+    for i, instr in enumerate(circuit.flattened()):
+        if instr.name == "OBSERVABLE_INCLUDE":
+            circuit_observables.append(instr)
+            measurements.append(circuit[i:].num_measurements)
+        else:
+            new_circuit.append(instr)
+
+    for k, observable in enumerate(observables):
+        new_targets: list[int] = []
+        for obs_ind in observable:
+            targets = circuit_observables[obs_ind].targets_copy()
+            targets = [t.value - measurements[obs_ind] for t in targets]
+            new_targets += targets
+        new_obs = stim.CircuitInstruction(
+            "OBSERVABLE_INCLUDE", [stim.target_rec(t) for t in new_targets], [k]
+        )
+        new_circuit.append(new_obs)
+
+    return new_circuit
+
+
+def get_qubit_measurements(circuit: stim.Circuit) -> dict[int, dict[int, str]]:
+    """Returns the basis of the measured qubits.
+
+    Parameters
+    ----------
+    circuit
+        Circuit with single-qubit measurements in the X or Z basis.
+        No other type of measurements are allowed.
+
+    Returns
+    -------
+    meas_after_tick
+        Dictionary with keys corresponding to TICK indicies that contain measurements
+        after them and with values corresponding a mapping of the qubits that are
+        measured and the basis of their corresponding measurements (`"X"` or `"Z"`).
+    """
+    if not isinstance(circuit, stim.Circuit):
+        raise TypeError(
+            f"'circuit' must be a stim.Circuit, but {type(circuit)} was given."
+        )
+
+    meas_after_tick: dict[int, dict[int, str]] = {}
+    current_tick = -1  # the first TICK found is tick number 0
+    for instr in circuit.flattened():
+        if instr.name == "TICK":
+            current_tick += 1
+            continue
+        if instr.name not in MEAS_INSTRS:
+            continue
+        if instr.name[-1] == "Y":
+            raise TypeError("Only measurements in the X and Z basis are allowed.")
+
+        qubit_inds = [t.value for t in instr.targets_copy()]
+        meas_type = "Z"
+        if instr.name[-1] == "X":
+            meas_type = "X"
+
+        if current_tick not in meas_after_tick:
+            meas_after_tick[current_tick] = {}
+
+        for qubit_ind in qubit_inds:
+            meas_after_tick[current_tick][qubit_ind] = meas_type
+
+    return meas_after_tick
+
+
 def get_subgraph(
     unencoded_circuit: stim.Circuit,
     encoded_circuit: stim.Circuit,
@@ -194,13 +303,16 @@ def get_subgraph(
         Unencoded (bare, logical) circuit. `TICK`s represent QEC rounds.
         Conditional gates based on outcomes are not supported. It must contain
         the same observable definitions as `encoded_circuit` (with the same
-        observable indices).
+        observable indices). Only single-qubit measurement in the X and Z
+        basis are allowed.
     encoded_circuit
         Encoded (physical) circuit. It must contain the detectors and
         observables used for decoding. The detectors must contain coordinates
         and their last element must be the index of the corresponding
         QEC round or `TICK` of `unencoded_circuit`. `TICK`s are not
-        important in `encoded_circuit`. The QEC code must be CSS.
+        important in `encoded_circuit`. The detectors for the logical measurements
+        must have their last element be equal to the index of the last `TICK`
+        + 0.5. The QEC code must be CSS.
     reliable_obs
         Reliable observable corresponding to a collection of observable indices
         (or a single index) from `encoded_circuit` and `unencoded_circuit`.
@@ -235,7 +347,7 @@ def get_subgraph(
             "'unencoded_circuit' and 'encoded_circuit' must have the same observables."
         )
     num_obs = encoded_circuit.num_observables
-    num_dets = encoded_circuit.num_detectors
+    num_ticks = unencoded_circuit.num_ticks
 
     if isinstance(reliable_obs, int):
         reliable_obs = [reliable_obs]
@@ -270,7 +382,7 @@ def get_subgraph(
         for coord in chain(*[l[stab_type] for l in stab_coords]):
             if not isinstance(coord, tuple):
                 raise TypeError("Coordinates must be tuples.")
-            if any(not isinstance(i, float) for i in coord):
+            if any(not isinstance(i, (float, int)) for i in coord):
                 raise TypeError("Coordinates must be tuple[float]")
 
     det_to_coords = encoded_circuit.get_detector_coordinates()
@@ -278,9 +390,9 @@ def get_subgraph(
         raise ValueError("All detectors must have coordinates.")
     if any(len(c) < 2 for c in det_to_coords.values()):
         raise ValueError("All detectors must contain at least two coordinates.")
-    if any(not c[-1].is_integer() for c in det_to_coords.values()):
-        raise ValueError("Last coordinate of all detectors must be an integer.")
-    if max([c[-1] for c in det_to_coords.values()]) != num_dets:
+    # using int(...) to make all the half integers from the measurement be converted to measurements.
+    # the tick coordinate starts at 0 (not at 1).
+    if int(max([c[-1] for c in det_to_coords.values()])) + 1 != num_ticks:
         raise ValueError(
             "Number of TICKs in `unencoded_circuit` must match the detector coordinate"
             " for number of rounds"
@@ -294,6 +406,7 @@ def get_subgraph(
         tuple(map(float, c[:-1])) for c in det_to_coords.values()
     ]
     all_stab_coords = z_stab_coords.union(x_stab_coords)
+    all_stab_coords = [tuple(map(float, c[:-1])) for c in all_stab_coords]
     if set(all_stab_coords) < set(all_stab_coords_circuit):
         raise ValueError(
             "Not all detectors of 'encoded_circuit' are speficied in 'stab_coords'."
@@ -304,9 +417,12 @@ def get_subgraph(
     for l_ind, l in enumerate(stab_coords):
         for stab_type in ["X", "Z"]:
             for coord in l[stab_type]:
+                # ensure they are floats, because they can be integers
+                coord = tuple(map(float, coord))
                 coords_to_stab[coord] = (l_ind, stab_type)
 
     obs_region = get_observing_region(unencoded_circuit, reliable_obs)
+    meas_after_tick = get_qubit_measurements(unencoded_circuit)
 
     sub_circuit = stim.Circuit()
     det_inds = []
@@ -328,18 +444,49 @@ def get_subgraph(
             continue
 
         coord = list(map(float, instr.gate_args_copy()))
-        coord, tick = tuple(coord[:-1]), int(coord[-1])
+        coord, tick = tuple(coord[:-1]), coord[-1]
+        qubit_ind, det_type = coords_to_stab[coord]
+
+        if not tick.is_integer():
+            # the detector comes from a logical measurement and the tick must be X.5
+            if not (tick * 2).is_integer():
+                raise ValueError(
+                    "Last detector coordinate must be integer or half integer, "
+                    f"but '{tick}' was found."
+                )
+
+            # if there is a measurement after the TICK in the unencoded circuit
+            # that is applied to 'qubit_ind', this means that the logical obsevable
+            # must include that measurement (because logical measurements are destructive).
+            tick = int(tick)  # remove 0.5 from tick
+            if tick not in meas_after_tick:
+                if qubit_ind not in meas_after_tick[tick]:
+                    raise ValueError(
+                        "Found detector with a half integer in the last coordinate "
+                        "that does not come from a logical measurement."
+                    )
+
+            meas_type = meas_after_tick[tick][qubit_ind]
+            if meas_type == det_type:
+                sub_circuit.append(instr)
+                det_inds.append(current_det)
+                current_det += 1
+
+            continue
+
+        # we know that the tick is an integer (coming from a QEC round)
+        tick = int(tick)
         if tick not in obs_region:
             continue
 
-        qubit_ind, det_type = coords_to_stab[coord]
         # stim uses encoding 0=I, 1=X, 2=Y, 3=Z.
         if (det_type == "Z") and (obs_region[tick][qubit_ind] in [3, 2]):
             sub_circuit.append(instr)
+            det_inds.append(current_det)
         if (det_type == "X") and (obs_region[tick][qubit_ind] in [1, 2]):
             sub_circuit.append(instr)
+            det_inds.append(current_det)
 
-        det_inds.append(current_det)
         current_det += 1
 
     # create the reliable observable definition
@@ -354,4 +501,5 @@ def get_subgraph(
     sub_circuit.append(new_obs)
 
     dem = sub_circuit.detector_error_model(decompose_errors=True)
+
     return dem, np.array(det_inds, dtype=int)

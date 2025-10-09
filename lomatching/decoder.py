@@ -6,7 +6,7 @@ import stim
 from pymatching import Matching
 
 from .util import get_reliable_observables as get_reliable_obs
-from .util import get_subgraph, Coords
+from .util import get_subgraph, Coords, remove_obs_except
 
 
 class MoMatching:
@@ -30,13 +30,16 @@ class MoMatching:
             Unencoded (bare, logical) circuit. `TICK`s represent QEC rounds.
             Conditional gates based on outcomes are not supported. It must contain
             the same observable definitions as `encoded_circuit` (with the same
-            observable indices).
+            observable indices). Only single-qubit measurement in the X and Z
+            basis are allowed.
         encoded_circuit
             Encoded (physical) circuit. It must contain the detectors and
             observables used for decoding. The detectors must contain coordinates
             and their last element must be the index of the corresponding
             QEC round or `TICK` of `unencoded_circuit`. `TICK`s are not
-            important in `encoded_circuit`. The QEC code must be CSS.
+            important in `encoded_circuit`. The detectors for the logical measurements
+            must have their last element be equal to the index of the last `TICK`
+            + 0.5. The QEC code must be CSS.
         stab_coords
             Coordinates of the X and Z stabilizers defined in `encoded_circuit` for
             each of the (logical) qubits defined in `unencoded_circuit`. The `i`th
@@ -52,8 +55,8 @@ class MoMatching:
         self._encoded_circuit: stim.Circuit = encoded_circuit
 
         self._reliable_obs: list[set[int]] = get_reliable_obs(unencoded_circuit)
-        self._encoded_circuit_with_only_reliable_obs: stim.Circuit = (
-            remove_obs_except_reliables(encoded_circuit, self._reliable_obs)
+        self._encoded_circuit_with_only_reliable_obs: stim.Circuit = remove_obs_except(
+            encoded_circuit, self._reliable_obs
         )
 
         self._matching_subgraphs: list[Matching] = []
@@ -90,11 +93,11 @@ class MoMatching:
                 f"'syndrome' must be a vector, but shape {syndrome.shape} was given."
             )
 
-        obs_corection = np.zeros(len(self.reliable_observables), dtype=bool)
+        obs_correction = np.zeros(len(self.reliable_observables), dtype=bool)
         for k, _ in enumerate(self.reliable_observables):
             subsyndrome = syndrome[self._det_inds_subgraphs[k]]
-            obs_corection[k] = self._matching_subgraphs[k].decode(subsyndrome)[0]
-        return obs_corection
+            obs_correction[k] = self._matching_subgraphs[k].decode(subsyndrome)[0]
+        return obs_correction
 
     def decode_batch(
         self, syndrome: npt.NDArray[np.int64 | np.bool]
@@ -111,10 +114,11 @@ class MoMatching:
                 f"({self.num_detectors}), but {syndrome.shape[1]} was given."
             )
 
-        obs_corection = np.zeros(
+        obs_correction = np.zeros(
             (len(syndrome), len(self.reliable_observables)), dtype=bool
         )
         for k, _ in enumerate(self.reliable_observables):
             subsyndrome = syndrome[:, self._det_inds_subgraphs[k]]
-            obs_corection[:, k] = self._matching_subgraphs[k].decode(subsyndrome)[:, 0]
-        return obs_corection
+            subcorrection = self._matching_subgraphs[k].decode_batch(subsyndrome)
+            obs_correction[:, k] = subcorrection[:, 0]
+        return obs_correction
