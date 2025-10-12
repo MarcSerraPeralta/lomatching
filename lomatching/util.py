@@ -63,11 +63,13 @@ def commute(region_a: PauliRegion, region_b: PauliRegion) -> bool:
     """Checks if two Pauli regions commute."""
     common_ticks = set(region_a).intersection(region_b)
 
-    tick_commute: list[bool] = []
+    # keep track of anticommutations otherwise if tick_commute = []
+    # it will return False which is not correct.
+    tick_anticommute: list[bool] = []
     for tick in common_ticks:
-        tick_commute.append(region_a[tick].commutes(region_b[tick]))
+        tick_anticommute.append(not region_a[tick].commutes(region_b[tick]))
 
-    return bool(sum(tick_commute) % 2)
+    return not bool(sum(tick_anticommute) % 2)
 
 
 def get_all_reset_paulistrings(circuit: stim.Circuit) -> dict[int, PauliRegion]:
@@ -177,7 +179,9 @@ def get_observing_region(
         new_circuit.append(new_obs)
 
     l0_target = stim.DemTarget("L0")
-    return new_circuit.detecting_regions(targets=[l0_target])[l0_target]
+    return new_circuit.detecting_regions(
+        targets=[l0_target], ignore_anticommutation_errors=True
+    )[l0_target]
 
 
 def remove_obs_except(
@@ -229,11 +233,12 @@ def remove_obs_except(
             new_circuit.append(instr)
 
     for k, observable in enumerate(observables):
-        new_targets: list[int] = []
+        # use a set and symmetric_difference to remove repeated targets (mod 2)
+        new_targets: set[int] = set()
         for obs_ind in observable:
             targets = circuit_observables[obs_ind].targets_copy()
             targets = [t.value - measurements[obs_ind] for t in targets]
-            new_targets += targets
+            new_targets.symmetric_difference_update(targets)
         new_obs = stim.CircuitInstruction(
             "OBSERVABLE_INCLUDE", [stim.target_rec(t) for t in new_targets], [k]
         )
@@ -257,6 +262,7 @@ def get_qubit_measurements(circuit: stim.Circuit) -> dict[int, dict[int, str]]:
         Dictionary with keys corresponding to TICK indicies that contain measurements
         after them and with values corresponding a mapping of the qubits that are
         measured and the basis of their corresponding measurements (`"X"` or `"Z"`).
+        Note that TICK indices start at 0.
     """
     if not isinstance(circuit, stim.Circuit):
         raise TypeError(
