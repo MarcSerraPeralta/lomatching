@@ -92,11 +92,12 @@ def get_all_reset_paulistrings(circuit: stim.Circuit) -> dict[int, PauliRegion]:
         raise TypeError(
             f"'circuit' must be a stim.Circuit, but {type(circuit)} was given."
         )
+    circuit = circuit.flattened()
 
     resets: dict[int, PauliRegion] = {}
     current_reset = 0
     current_tick = 0
-    for instr in circuit.flattened():
+    for instr in circuit:
         if instr.name == "TICK":
             current_tick += 1
             continue
@@ -206,6 +207,8 @@ def remove_obs_except(
         raise TypeError(
             f"'circuit' must be a stim.Circuit, but {type(circuit)} was given."
         )
+    circuit = circuit.flattened()
+
     if not isinstance(observables, Sequence):
         raise TypeError(
             f"'observables' must be a Sequence, but {type(observables)} was given."
@@ -225,7 +228,7 @@ def remove_obs_except(
     # therefore I need to take care of how many measurements are between the definition
     # and the end of the circuit (where I am going to define the observables)
     measurements: list[int] = []
-    for i, instr in enumerate(circuit.flattened()):
+    for i, instr in enumerate(circuit):
         if instr.name == "OBSERVABLE_INCLUDE":
             circuit_observables.append(instr)
             measurements.append(circuit[i:].num_measurements)
@@ -343,11 +346,13 @@ def get_subgraph(
             "'unencoded_circuit' must be a stim.Circuit, "
             f"but {type(unencoded_circuit)} was given."
         )
+    unencoded_circuit = unencoded_circuit.flattened()
     if not isinstance(encoded_circuit, stim.Circuit):
         raise TypeError(
             "'encoded_circuit' must be a stim.Circuit, "
             f"but {type(encoded_circuit)} was given."
         )
+    encoded_circuit = encoded_circuit.flattened()
     if unencoded_circuit.num_observables != encoded_circuit.num_observables:
         raise ValueError(
             "'unencoded_circuit' and 'encoded_circuit' must have the same observables."
@@ -440,7 +445,7 @@ def get_subgraph(
     observables: list[stim.CircuitInstruction] = []
     measurements: list[int] = []
 
-    for i, instr in enumerate(encoded_circuit.flattened()):
+    for i, instr in enumerate(encoded_circuit):
         if instr.name not in ["OBSERVABLE_INCLUDE", "DETECTOR"]:
             sub_circuit.append(instr)
             continue
