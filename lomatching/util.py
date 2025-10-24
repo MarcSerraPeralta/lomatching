@@ -10,7 +10,6 @@ Coords = tuple[float, ...]
 PauliRegion = dict[int, stim.PauliString]
 
 RESET_INSTRS = ["R", "RX", "RY", "RZ", "MR", "MRX", "MRY", "MRZ"]
-MEAS_INSTRS = ["M", "MX", "MY", "MZ", "MR", "MRX", "MRY", "MRZ"]
 
 
 def get_reliable_observables(circuit: stim.Circuit) -> list[set[int]]:
@@ -250,81 +249,19 @@ def remove_obs_except(
     return new_circuit
 
 
-def get_qubit_measurements(circuit: stim.Circuit) -> dict[int, dict[int, str]]:
-    """Returns the basis of the measured qubits.
-
-    Parameters
-    ----------
-    circuit
-        Circuit with single-qubit measurements in the X or Z basis.
-        No other type of measurements are allowed.
-
-    Returns
-    -------
-    meas_after_tick
-        Dictionary with keys corresponding to TICK indicies that contain measurements
-        after them and with values corresponding a mapping of the qubits that are
-        measured and the basis of their corresponding measurements (`"X"` or `"Z"`).
-        Note that TICK indices start at 0.
-    """
-    if not isinstance(circuit, stim.Circuit):
-        raise TypeError(
-            f"'circuit' must be a stim.Circuit, but {type(circuit)} was given."
-        )
-
-    meas_after_tick: dict[int, dict[int, str]] = {}
-    current_tick = -1  # the first TICK found is tick number 0
-    for instr in circuit.flattened():
-        if instr.name == "TICK":
-            current_tick += 1
-            continue
-        if instr.name not in MEAS_INSTRS:
-            continue
-        if instr.name[-1] == "Y":
-            raise TypeError("Only measurements in the X and Z basis are allowed.")
-
-        qubit_inds = [t.value for t in instr.targets_copy()]
-        meas_type = "Z"
-        if instr.name[-1] == "X":
-            meas_type = "X"
-
-        if current_tick not in meas_after_tick:
-            meas_after_tick[current_tick] = {}
-
-        for qubit_ind in qubit_inds:
-            meas_after_tick[current_tick][qubit_ind] = meas_type
-
-    return meas_after_tick
-
-
-def get_subgraph(
-    unencoded_circuit: stim.Circuit,
-    encoded_circuit: stim.Circuit,
-    reliable_obs: Collection[int] | int,
+def get_detector_indices_for_subgraphs(
+    dem: stim.DetectorErrorModel,
     stab_coords: Sequence[dict[str, Collection[Coords]]],
-) -> tuple[stim.DetectorErrorModel, npt.NDArray[np.int64]]:
-    """Returns the (decomposed) detector error model and detector indices
-    inside the given observable's observing region.
+) -> list[npt.NDArray[np.int64]]:
+    """Returns a the detector indices for each of the observing regions in
+    the given detector error model.
 
     Parameters
     ----------
-    unencoded_circuit
-        Unencoded (bare, logical) circuit. `TICK`s represent QEC rounds.
-        Conditional gates based on outcomes are not supported. It must contain
-        the same observable definitions as `encoded_circuit` (with the same
-        observable indices). Only single-qubit measurement in the X and Z
-        basis are allowed.
-    encoded_circuit
-        Encoded (physical) circuit. It must contain the detectors and
-        observables used for decoding. The detectors must contain coordinates
-        and their last element must be the index of the corresponding
-        QEC round or `TICK` of `unencoded_circuit`. `TICK`s are not
-        important in `encoded_circuit`. The detectors for the logical measurements
-        must have their last element be equal to the index of the last `TICK`
-        + 0.5. The QEC code must be CSS.
-    reliable_obs
-        Reliable observable corresponding to a collection of observable indices
-        (or a single index) from `encoded_circuit` and `unencoded_circuit`.
+    dem
+        Detector error model.
+        All detectors must have coordinates defined, with the last coordinate element
+        representing time (or number of ticks).
     stab_coords
         Coordinates of the X and Z stabilizers defined in `encoded_circuit` for
         each of the (logical) qubits defined in `unencoded_circuit`. The `i`th
@@ -334,51 +271,15 @@ def get_subgraph(
 
     Returns
     -------
-    dem
-        Detector error model inside `reliable_obs` observing region.
-        The DEM only contains the reliable observable.
     det_inds
-        Detector indices inside `reliable_obs` observing region.
-        The length of `det_inds` matches the number of detectors in `dem`.
+        Detector indices inside each of the observing regions.
+        The length of `det_inds` matches the number of observables in ``dem``
+        and they are sorted following the observable indices.
     """
-    if not isinstance(unencoded_circuit, stim.Circuit):
-        raise TypeError(
-            "'unencoded_circuit' must be a stim.Circuit, "
-            f"but {type(unencoded_circuit)} was given."
-        )
-    unencoded_circuit = unencoded_circuit.flattened()
-    if not isinstance(encoded_circuit, stim.Circuit):
-        raise TypeError(
-            "'encoded_circuit' must be a stim.Circuit, "
-            f"but {type(encoded_circuit)} was given."
-        )
-    encoded_circuit = encoded_circuit.flattened()
-    if unencoded_circuit.num_observables != encoded_circuit.num_observables:
-        raise ValueError(
-            "'unencoded_circuit' and 'encoded_circuit' must have the same observables."
-        )
-    num_obs = encoded_circuit.num_observables
-    num_ticks = unencoded_circuit.num_ticks
+    if not isinstance(dem, stim.DetectorErrorModel):
+        raise TypeError(f"'dem' must be a stim DEM, but {type(dem)} was given.")
+    dem = dem.flattened()
 
-    if isinstance(reliable_obs, int):
-        reliable_obs = [reliable_obs]
-    if not isinstance(reliable_obs, Collection):
-        raise TypeError(
-            "'reliable_obs' must be a Collection, but {type(reliable_obs)} was given."
-        )
-    if any(not (isinstance(o, int) and o < num_obs) for o in reliable_obs):
-        raise TypeError(
-            "Elements in 'reliable_obs' must be valid observable indices in 'encoded_circuit'."
-        )
-
-    if not isinstance(stab_coords, Sequence):
-        raise TypeError(
-            f"'stab_coords' must be a Sequence, but {type(stab_coords)} was given."
-        )
-    if len(stab_coords) != unencoded_circuit.num_qubits:
-        raise ValueError(
-            "Lenght of 'stab_coords' must match the number of qubits in 'unencoded_circuit'."
-        )
     if any(not isinstance(l, dict) for l in stab_coords):
         raise TypeError("Elements of 'stab_coords' must be dictionaries.")
     if any(set(l.keys()) < set(["X", "Z"]) for l in stab_coords):
@@ -394,34 +295,13 @@ def get_subgraph(
             if not isinstance(coord, tuple):
                 raise TypeError("Coordinates must be tuples.")
             if any(not isinstance(i, (float, int)) for i in coord):
-                raise TypeError("Coordinates must be tuple[float]")
+                raise TypeError("Coordinates must be tuple[float].")
 
-    det_to_coords = encoded_circuit.get_detector_coordinates()
+    det_to_coords = dem.get_detector_coordinates()
     if any(c == [] for c in det_to_coords.values()):
         raise ValueError("All detectors must have coordinates.")
-    if any(len(c) < 2 for c in det_to_coords.values()):
-        raise ValueError("All detectors must contain at least two coordinates.")
-    # using int(...) to make all the half integers from the measurement be converted to measurements.
-    # the tick coordinate starts at 0 (not at 1).
-    if int(max([c[-1] for c in det_to_coords.values()])) + 1 != num_ticks:
-        raise ValueError(
-            "Number of TICKs in `unencoded_circuit` must match the detector coordinate"
-            " for number of rounds"
-        )
-
-    z_stab_coords = set(chain(*[l["X"] for l in stab_coords]))
-    x_stab_coords = set(chain(*[l["Z"] for l in stab_coords]))
-    if len(z_stab_coords.intersection(x_stab_coords)) != 0:
-        raise ValueError("Coordinate(s) appear in both X and Z type stabilizers.")
-    all_stab_coords_circuit = [
-        tuple(map(float, c[:-1])) for c in det_to_coords.values()
-    ]
-    all_stab_coords = z_stab_coords.union(x_stab_coords)
-    all_stab_coords = [tuple(map(float, c[:-1])) for c in all_stab_coords]
-    if set(all_stab_coords) < set(all_stab_coords_circuit):
-        raise ValueError(
-            "Not all detectors of 'encoded_circuit' are speficied in 'stab_coords'."
-        )
+    det_to_coords = {d: tuple(map(float, c)) for d, c in det_to_coords.items()}
+    coords_to_det = {c: d for d, c in det_to_coords.items()}
 
     # create mapping for fast detector selection
     coords_to_stab: dict[Coords, tuple[int, str]] = {}
@@ -432,85 +312,68 @@ def get_subgraph(
                 coord = tuple(map(float, coord))
                 coords_to_stab[coord] = (l_ind, stab_type)
 
-    obs_region = get_observing_region(unencoded_circuit, reliable_obs)
-    meas_after_tick = get_qubit_measurements(unencoded_circuit)
+    # get boundary edges that flip the observables
+    bd_edges_obs = {l: [] for l in range(dem.num_observables)}
+    for instr in dem:
+        if instr.type != "error":
+            continue
 
-    sub_circuit = stim.Circuit()
+        dets = [t.val for t in instr.targets_copy() if t.is_relative_detector_id()]
+        if len(dets) != 1:
+            continue
+
+        obs = [t.val for t in instr.targets_copy() if t.is_logical_observable_id()]
+        for o in obs:
+            bd_edges_obs[o] += dets
+
+    # identify (logical qubit, stabilizer type, time) for each boundary edge
+    lst_obs = {l: set() for l in range(dem.num_observables)}
+    for obs, dets in bd_edges_obs.items():
+        for det in dets:
+            coords = det_to_coords[det]
+            l_ind, stab = coords_to_stab[coords[:-1]]
+            time = coords[-1]
+            lst_obs[obs].add((l_ind, stab, time))
+
+    # get all detectors for the given (logical qubit, stability type, time)
     det_inds = []
-    current_det = 0
-    # need to create new observable corresponding to the reliable observable.
-    # moving the definition of the observables messes with the rec[-i] definition
-    # therefore I need to take care of how many measurements are between the definition
-    # and the end of the circuit (where I am going to define the reliable observable)
-    observables: list[stim.CircuitInstruction] = []
-    measurements: list[int] = []
+    for obs in lst_obs:
+        inds = []
+        for l_ind, stab, time in lst_obs[obs]:
+            coords = [(*c, time) for c in stab_coords[l_ind][stab]]
+            inds += [coords_to_det[c] for c in coords]
+        # indices need to be sorted to match the indices order in the dem!
+        det_inds.append(np.array(sorted(inds), dtype=int))
 
-    for i, instr in enumerate(encoded_circuit):
-        if instr.name not in ["OBSERVABLE_INCLUDE", "DETECTOR"]:
-            sub_circuit.append(instr)
-            continue
-        if instr.name == "OBSERVABLE_INCLUDE":
-            observables.append(instr)
-            measurements.append(encoded_circuit[i:].num_measurements)
-            continue
+    return det_inds
 
-        coord = list(map(float, instr.gate_args_copy()))
-        coord, tick = tuple(coord[:-1]), coord[-1]
-        qubit_ind, det_type = coords_to_stab[coord]
 
-        if not tick.is_integer():
-            # the detector comes from a logical measurement and the tick must be X.5
-            if not (tick * 2).is_integer():
-                raise ValueError(
-                    "Last detector coordinate must be integer or half integer, "
-                    f"but '{tick}' was found."
-                )
+def get_circuit_subgraph(
+    circuit: stim.Circuit, det_inds: Collection[int]
+) -> stim.Circuit:
+    """Returns the given circuit but with only the specified detectors."""
+    if not isinstance(circuit, stim.Circuit):
+        raise TypeError(
+            f"'circuit' must be a stim.Circuit, but {type(circuit)} was given."
+        )
+    circuit = circuit.flattened()
+    if not isinstance(det_inds, Collection):
+        raise TypeError(
+            f"'det_inds' must be a collection, but {type(det_inds)} was given."
+        )
+    if any(not isinstance(d, (int, np.int64)) for d in det_inds):
+        raise TypeError("Elements in 'det_inds' must be integers.")
 
-            # if there is a measurement after the TICK in the unencoded circuit
-            # that is applied to 'qubit_ind', this means that the logical obsevable
-            # must include that measurement (because logical measurements are destructive).
-            tick = int(tick)  # remove 0.5 from tick
-            if tick not in meas_after_tick:
-                if qubit_ind not in meas_after_tick[tick]:
-                    raise ValueError(
-                        "Found detector with a half integer in the last coordinate "
-                        "that does not come from a logical measurement."
-                    )
-
-            meas_type = meas_after_tick[tick][qubit_ind]
-            if meas_type == det_type:
-                sub_circuit.append(instr)
-                det_inds.append(current_det)
-                current_det += 1
-
+    new_circuit = stim.Circuit()
+    curr_det_ind = 0
+    for instr in circuit:
+        if instr.name != "DETECTOR":
+            new_circuit.append(instr)
             continue
 
-        # we know that the tick is an integer (coming from a QEC round)
-        tick = int(tick)
-        if tick not in obs_region:
-            continue
+        if curr_det_ind in det_inds:
+            new_circuit.append(instr)
 
-        # stim uses encoding 0=I, 1=X, 2=Y, 3=Z.
-        if (det_type == "Z") and (obs_region[tick][qubit_ind] in [3, 2]):
-            sub_circuit.append(instr)
-            det_inds.append(current_det)
-        if (det_type == "X") and (obs_region[tick][qubit_ind] in [1, 2]):
-            sub_circuit.append(instr)
-            det_inds.append(current_det)
+        curr_det_ind += 1
 
-        current_det += 1
-
-    # create the reliable observable definition
-    new_targets: list[int] = []
-    for obs_ind in reliable_obs:
-        targets = observables[obs_ind].targets_copy()
-        targets = [t.value - measurements[obs_ind] for t in targets]
-        new_targets += targets
-    new_obs = stim.CircuitInstruction(
-        "OBSERVABLE_INCLUDE", [stim.target_rec(t) for t in new_targets], [0]
-    )
-    sub_circuit.append(new_obs)
-
-    dem = sub_circuit.detector_error_model(decompose_errors=True)
-
-    return dem, np.array(det_inds, dtype=int)
+    return new_circuit

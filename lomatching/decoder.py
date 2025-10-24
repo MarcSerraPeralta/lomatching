@@ -5,8 +5,7 @@ import numpy.typing as npt
 import stim
 from pymatching import Matching
 
-from .util import get_reliable_observables as get_reliable_obs
-from .util import get_subgraph, Coords, remove_obs_except
+from .util import get_detector_indices_for_subgraphs, get_circuit_subgraph, Coords
 
 
 class MoMatching:
@@ -17,21 +16,15 @@ class MoMatching:
 
     def __init__(
         self,
-        unencoded_circuit: stim.Circuit,
         encoded_circuit: stim.Circuit,
         stab_coords: Sequence[dict[str, Collection[Coords]]],
+        allow_gauge_detectors: bool = False,
     ):
         """
         Initializes a ``MoMatching`` decoder.
 
         Parameters
         ----------
-        unencoded_circuit
-            Unencoded (bare, logical) circuit. `TICK`s represent QEC rounds.
-            Conditional gates based on outcomes are not supported. It must contain
-            the same observable definitions as `encoded_circuit` (with the same
-            observable indices). Only single-qubit measurement in the X and Z
-            basis are allowed.
         encoded_circuit
             Encoded (physical) circuit. It must contain the detectors and
             observables used for decoding. The detectors must contain coordinates
@@ -46,44 +39,49 @@ class MoMatching:
             element in the list must correspond to qubit index `i` in `unencoded_circuit`.
             Each element must be a dictionary with keys `"X"` and `"Z"`, and values
             corresponding to the ancilla coordinates of the specific stabilizer type.
+        allow_gauge_detectors
+            Allow gauge detectors when using ``stim.Circuit.detector_error_model``.
 
         Notes
         -----
         See example in the ``README.md`` file.
         """
-        self._unencoded_circuit: stim.Circuit = unencoded_circuit
+        if not isinstance(encoded_circuit, stim.Circuit):
+            raise TypeError(
+                f"'encoded_circuit' must be a stim.Circuit, "
+                "but {type(encoded_circuit)} was given."
+            )
         self._encoded_circuit: stim.Circuit = encoded_circuit
+        self._num_obs: int = encoded_circuit.num_observables
+        self._num_dets: int = encoded_circuit.num_detectors
 
-        self._reliable_obs: list[set[int]] = get_reliable_obs(unencoded_circuit)
-        self._encoded_circuit_with_only_reliable_obs: stim.Circuit = remove_obs_except(
-            encoded_circuit, self._reliable_obs
-        )
-
+        self._dem_subgraphs: list[stim.DetectorErrorModel] = []
         self._matching_subgraphs: list[Matching] = []
         self._det_inds_subgraphs: list[npt.NDArray[np.int64]] = []
-        for obs in self._reliable_obs:
-            subgraph, det_inds = get_subgraph(
-                unencoded_circuit, encoded_circuit, obs, stab_coords
+
+        self._dem = self._encoded_circuit.detector_error_model(
+            allow_gauge_detectors=allow_gauge_detectors
+        )
+
+        self._det_inds_subgraphs = get_detector_indices_for_subgraphs(
+            self._dem, stab_coords
+        )
+
+        for obs in range(self._num_obs):
+            subcircuit = get_circuit_subgraph(
+                encoded_circuit, self._det_inds_subgraphs[obs]
             )
+            subgraph = subcircuit.detector_error_model(
+                allow_gauge_detectors=allow_gauge_detectors
+            )
+            self._dem_subgraphs.append(subgraph)
             self._matching_subgraphs.append(Matching(subgraph))
-            self._det_inds_subgraphs.append(det_inds)
 
         return
 
     @property
-    def reliable_observables(self) -> list[set[int]]:
-        """Reliable observables in the circuit, where each one is given as a set
-        integers corresponding to observable indicies from the circuit."""
-        return [set(o) for o in self._reliable_obs]
-
-    @property
-    def encoded_circuit_with_only_reliable_observables(self) -> stim.Circuit:
-        """This circuit is useful for sampling errors."""
-        return self._encoded_circuit_with_only_reliable_obs.copy()
-
-    @property
-    def num_detectors(self) -> int:
-        return self._encoded_circuit.num_detectors
+    def dem(self):
+        return self._dem.copy()
 
     def decode(self, syndrome: npt.NDArray[np.int64 | np.bool]) -> npt.NDArray[np.bool]:
         """Decodes the given syndrome vector and returns the corrections for
@@ -93,8 +91,8 @@ class MoMatching:
                 f"'syndrome' must be a vector, but shape {syndrome.shape} was given."
             )
 
-        obs_correction = np.zeros(len(self.reliable_observables), dtype=bool)
-        for k, _ in enumerate(self.reliable_observables):
+        obs_correction = np.zeros(self._num_obs, dtype=bool)
+        for k in range(self._num_obs):
             subsyndrome = syndrome[self._det_inds_subgraphs[k]]
             obs_correction[k] = self._matching_subgraphs[k].decode(subsyndrome)[0]
         return obs_correction
@@ -108,17 +106,15 @@ class MoMatching:
             raise TypeError(
                 f"'syndrome' must be a matrix, but shape {syndrome.shape} was given."
             )
-        if syndrome.shape[1] != self.num_detectors:
+        if syndrome.shape[1] != self._num_dets:
             raise TypeError(
                 "'syndrome.shape[1]' must match the number of detectors "
-                f"({self.num_detectors}), but {syndrome.shape[1]} was given."
+                f"({self._num_dets}), but {syndrome.shape[1]} was given."
             )
 
-        obs_correction = np.zeros(
-            (len(syndrome), len(self.reliable_observables)), dtype=bool
-        )
-        for k, _ in enumerate(self.reliable_observables):
+        obs_correction = np.zeros((len(syndrome), self._num_obs), dtype=bool)
+        for k in range(self._num_obs):
             subsyndrome = syndrome[:, self._det_inds_subgraphs[k]]
             subcorrection = self._matching_subgraphs[k].decode_batch(subsyndrome)
-            obs_correction[:, k] = subcorrection[:, 0]
+            obs_correction[:, k] = subcorrection[:, k]
         return obs_correction
