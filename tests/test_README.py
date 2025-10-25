@@ -1,8 +1,7 @@
 def test_README():
-    import numpy as np
     import stim
 
-    from surface_sim.setup import CircuitNoiseSetup
+    from surface_sim.setups import CircuitNoiseSetup
     from surface_sim.models import CircuitNoiseModel
     from surface_sim import Detectors
     from surface_sim.experiments import schedule_from_circuit, experiment_from_schedule
@@ -52,7 +51,5 @@ def test_README():
 
     predictions = decoder.decode_batch(syndromes)
     log_errors = (predictions != log_flips).any(axis=1)
-
-    print("Logical error probability:", np.average(log_errors))
 
     return

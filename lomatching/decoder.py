@@ -31,7 +31,8 @@ class MoMatching:
             and their last element must be the index of the corresponding
             QEC round or time. The defined observables must be reliable, see
             ``lomatching.get_reliable_observables`` and
-            ``lomatching.remove_obs_except``. The QEC code must be CSS.
+            ``lomatching.remove_obs_except``. The QEC code must be CSS and have
+            boundaries were the the logical Paulis terminate.
         stab_coords
             Coordinates of the X and Z stabilizers defined in `encoded_circuit` for
             each of the (logical) qubits. The ``i``th element in the list must correspond
