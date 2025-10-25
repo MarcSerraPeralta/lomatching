@@ -10,7 +10,7 @@ from .util import get_detector_indices_for_subgraphs, get_circuit_subgraph, Coor
 
 class MoMatching:
     """
-    Decodes all reliable observables in an (unconditional) logical Clifford
+    Decodes all reliable observables in an (unconditional) logical transversal-Clifford
     circuit with `pymatching.Matching`.
     """
 
@@ -29,18 +29,15 @@ class MoMatching:
             Encoded (physical) circuit. It must contain the detectors and
             observables used for decoding. The detectors must contain coordinates
             and their last element must be the index of the corresponding
-            QEC round or `TICK` of `unencoded_circuit`. `TICK`s are not
-            important in `encoded_circuit`. The detectors for the logical measurements
-            must have their last element be equal to the index of the last `TICK`
-            + 0.5. The QEC code must be CSS.
+            QEC round or time. The QEC code must be CSS.
         stab_coords
             Coordinates of the X and Z stabilizers defined in `encoded_circuit` for
-            each of the (logical) qubits defined in `unencoded_circuit`. The `i`th
-            element in the list must correspond to qubit index `i` in `unencoded_circuit`.
+            each of the (logical) qubits. The `i`th element in the list must correspond
+            to qubit index `i` in `unencoded_circuit`.
             Each element must be a dictionary with keys `"X"` and `"Z"`, and values
             corresponding to the ancilla coordinates of the specific stabilizer type.
         allow_gauge_detectors
-            Allow gauge detectors when using ``stim.Circuit.detector_error_model``.
+            Allow gauge detectors when calling ``stim.Circuit.detector_error_model``.
 
         Notes
         -----
@@ -59,7 +56,7 @@ class MoMatching:
         self._matching_subgraphs: list[Matching] = []
         self._det_inds_subgraphs: list[npt.NDArray[np.int64]] = []
 
-        self._dem = self._encoded_circuit.detector_error_model(
+        self._dem: stim.DetectorErrorModel = self._encoded_circuit.detector_error_model(
             allow_gauge_detectors=allow_gauge_detectors
         )
 
@@ -72,7 +69,8 @@ class MoMatching:
                 encoded_circuit, self._det_inds_subgraphs[obs]
             )
             subgraph = subcircuit.detector_error_model(
-                allow_gauge_detectors=allow_gauge_detectors
+                decompose_errors=True,
+                allow_gauge_detectors=allow_gauge_detectors,
             )
             self._dem_subgraphs.append(subgraph)
             self._matching_subgraphs.append(Matching(subgraph))
@@ -84,8 +82,7 @@ class MoMatching:
         return self._dem.copy()
 
     def decode(self, syndrome: npt.NDArray[np.int64 | np.bool]) -> npt.NDArray[np.bool]:
-        """Decodes the given syndrome vector and returns the corrections for
-        the reliable observables, see `MoMatching.reliable_observables`."""
+        """Decodes the given syndrome vector and returns the corrections for the observables."""
         if len(syndrome.shape) != 1:
             raise TypeError(
                 f"'syndrome' must be a vector, but shape {syndrome.shape} was given."
@@ -100,8 +97,7 @@ class MoMatching:
     def decode_batch(
         self, syndrome: npt.NDArray[np.int64 | np.bool]
     ) -> npt.NDArray[np.bool]:
-        """Decodes the given batch of syndromes and returns the corrections for
-        the reliable observables, see `MoMatching.reliable_observables`."""
+        """Decodes the given batch of syndromes and returns the corrections for the observables."""
         if len(syndrome.shape) != 2:
             raise TypeError(
                 f"'syndrome' must be a matrix, but shape {syndrome.shape} was given."

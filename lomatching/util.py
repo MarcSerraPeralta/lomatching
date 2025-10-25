@@ -264,8 +264,8 @@ def get_detector_indices_for_subgraphs(
         representing time (or number of ticks).
     stab_coords
         Coordinates of the X and Z stabilizers defined in `encoded_circuit` for
-        each of the (logical) qubits defined in `unencoded_circuit`. The `i`th
-        element in the list must correspond to qubit index `i` in `unencoded_circuit`.
+        each of the (logical) qubits. The `i`th element in the list must correspond
+        to qubit index `i` in `unencoded_circuit`.
         Each element must be a dictionary with keys `"X"` and `"Z"`, and values
         corresponding to the ancilla coordinates of the specific stabilizer type.
 

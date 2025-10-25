@@ -1,4 +1,3 @@
-import pytest
 import stim
 from surface_sim.setups import CircuitNoiseSetup
 from surface_sim.models import IncResMeasNoiseModel
@@ -10,11 +9,11 @@ from surface_sim.layouts import unrot_surface_codes
 from lomatching.util import (
     get_observing_region,
     get_reliable_observables,
-    get_subgraph,
-    get_qubit_measurements,
     get_all_reset_paulistrings,
     commute,
     remove_obs_except,
+    get_detector_indices_for_subgraphs,
+    get_circuit_subgraph,
 )
 
 
@@ -211,39 +210,6 @@ def test_get_all_reset_paulistrings():
     return
 
 
-def test_get_qubit_measurements():
-    circuit = stim.Circuit(
-        """
-        R 0 1
-        H 1
-        TICK
-        CNOT 0 1
-        TICK 
-        MX 1
-        TICK
-        R 0
-        TICK
-        M 0 1
-        TICK
-        """
-    )
-
-    measurements = get_qubit_measurements(circuit)
-
-    expected_measurements = {
-        1: {1: "X"},
-        3: {0: "Z", 1: "Z"},
-    }
-
-    assert measurements == expected_measurements
-
-    circuit = stim.Circuit("R 0\nTICK\nMY 0")
-    with pytest.raises(TypeError):
-        _ = get_qubit_measurements(circuit)
-
-    return
-
-
 def test_remove_obs_except():
     circuit = stim.Circuit(
         """
@@ -281,7 +247,7 @@ def test_remove_obs_except():
     return
 
 
-def test_get_subgraph():
+def test_get_circuit_subgraph():
     layouts = unrot_surface_codes(2, distance=3)
     setup = CircuitNoiseSetup()
     setup.set_var_param("prob", 1e-3)
@@ -295,8 +261,7 @@ def test_get_subgraph():
 
     unencoded_circuit = stim.Circuit(
         """
-        RX 0
-        R 1
+        R 0 1
         TICK
         CNOT 0 1
         TICK
@@ -307,36 +272,37 @@ def test_get_subgraph():
         S 1
         TICK
         MZ 0 1
-        OBSERVABLE_INCLUDE(0) rec[-2]
-        OBSERVABLE_INCLUDE(1) rec[-1]
         """
     )
-    schedule = schedule_from_circuit(unencoded_circuit[:-2], layouts, gate_to_iterator)
+    schedule = schedule_from_circuit(unencoded_circuit, layouts, gate_to_iterator)
     encoded_circuit = experiment_from_schedule(
         schedule, model, detectors, anc_reset=True, anc_detectors=None
     )
+    dem = encoded_circuit.detector_error_model()
 
-    dem_subgraph, det_inds = get_subgraph(
-        unencoded_circuit, encoded_circuit, (0, 1), stab_coords
-    )
+    set_det_inds = get_detector_indices_for_subgraphs(dem, stab_coords)
 
-    # check that the decoding subgraph is a graph
-    for instr in dem_subgraph.flattened():
-        if instr.type != "error":
-            continue
+    for det_inds in set_det_inds:
+        circuit_subgraph = get_circuit_subgraph(encoded_circuit, det_inds)
+        dem_subgraph = circuit_subgraph.detector_error_model(decompose_errors=True)
 
-        dets = [t for t in instr.targets_copy() if t.is_relative_detector_id()]
-        contains_separator = any(
-            [True for t in instr.targets_copy() if t.is_separator()]
-        )
-        # because the incoming noise model is applied both before and after the
-        # logical gates, there are X and Z incoming errors that correspond to
-        # hyperedges.
-        if not contains_separator:
-            assert len(dets) <= 2
-        else:
-            assert len(dets) == 4
+        # check that the decoding subgraph is a graph
+        for instr in dem_subgraph.flattened():
+            if instr.type != "error":
+                continue
 
-    assert len(det_inds) == dem_subgraph.num_detectors
+            dets = [t for t in instr.targets_copy() if t.is_relative_detector_id()]
+            contains_separator = any(
+                [True for t in instr.targets_copy() if t.is_separator()]
+            )
+            # because the incoming noise model is applied both before and after the
+            # logical gates, there are X and Z incoming errors that correspond to
+            # hyperedges.
+            if not contains_separator:
+                assert len(dets) <= 2
+            else:
+                assert len(dets) == 4
+
+        assert len(det_inds) == dem_subgraph.num_detectors
 
     return
