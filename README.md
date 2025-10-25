@@ -21,70 +21,61 @@ pip install lomatching/
 ## Example
 
 ```
+import numpy as np
 import stim
 
-from surface_sim.setup import CircuitNoiseSetup
+from surface_sim.setups import CircuitNoiseSetup
 from surface_sim.models import CircuitNoiseModel
 from surface_sim import Detectors
 from surface_sim.experiments import schedule_from_circuit, experiment_from_schedule
 from surface_sim.circuit_blocks.unrot_surface_code_css import gate_to_iterator
 from surface_sim.layouts import unrot_surface_codes
 
-from lomatching import MoMatching
+from lomatching import MoMatching, get_reliable_observables, remove_obs_except
 
 # circuit considered
 circuit = stim.Circuit(
     """
-    RX 0 1
+    RX 0
+    RZ 1
     TICK
     CNOT 0 1
-    TICK
-    CNOT 1 0
-    TICK
-    CNOT 0 1
-    TICK
-    CNOT 1 0
-    TICK
     MX 0 1
     """
 )
 
 # generate encoded circuit
 layouts = unrot_surface_codes(2, distance=3)
-qubit_inds = {}
-anc_coords = {}
-anc_qubits = []
-for l, layout in enumerate(layouts):
-    qubit_inds.update(layout.qubit_inds())
-    anc_qubits += layout.get_qubits(role="anc")
-    coords = layout.anc_coords()
-    anc_coords.update(coords)
-
 setup = CircuitNoiseSetup()
 setup.set_var_param("prob", 1e-3)
-model = CircuitNoiseModel(setup=setup, qubit_inds=qubit_inds)
-detectors = Detectors(anc_qubits, frame="pre-gate", anc_coords=anc_coords)
+model = CircuitNoiseModel.from_layouts(setup, *layouts)
+detectors = Detectors.from_layouts("pre-gate", *layouts)
 
 schedule = schedule_from_circuit(circuit, layouts, gate_to_iterator)
-experiment = experiment_from_schedule(
+encoded_circuit = experiment_from_schedule(
     schedule, model, detectors, anc_reset=True, anc_detectors=None
 )
 
 # prepare inputs for MoMatching
-dem = experiment.detector_error_model(allow_gauge_detectors=True)
-stab_coords = {}
+stab_coords = [{} for _ in layouts]
 for l, layout in enumerate(layouts):
-    stab_coords[f"Z{l}"] = [v for k, v in coords.items() if k[0] == "Z"]
-    stab_coords[f"X{l}"] = [v for k, v in coords.items() if k[0] == "X"]
+    coords = layout.anc_coords
+    stab_coords[l][f"Z"] = [v for k, v in coords.items() if k[0] == "Z"]
+    stab_coords[l][f"X"] = [v for k, v in coords.items() if k[0] == "X"]
 
-decoder = MoMatching(dem, circuit, [["X0"], ["X1"]], stab_coords, "pre-gate")
+reliable_obs = get_reliable_observables(encoded_circuit)
+encoded_circuit = remove_obs_except(encoded_circuit, reliable_obs)
+
+decoder = MoMatching(encoded_circuit, stab_coords)
 
 # run MoMatching
-sampler = dem.compile_sampler()
-syndrome, log_flips, _ = sampler.sample(shots=10)
+sampler = encoded_circuit.detector_error_model().compile_sampler()
+syndromes, log_flips, _ = sampler.sample(shots=10)
 
-predictions = decoder.decode_batch(syndrome)
-log_errors = (predictions != log_flips)
+predictions = decoder.decode_batch(syndromes)
+log_errors = (predictions != log_flips).any(axis=1)
+
+print("Logical error probability:", np.average(log_errors))
 ```
 
 
