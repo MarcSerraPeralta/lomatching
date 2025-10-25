@@ -253,7 +253,7 @@ def get_detector_indices_for_subgraphs(
     dem: stim.DetectorErrorModel,
     stab_coords: Sequence[dict[str, Collection[Coords]]],
 ) -> list[npt.NDArray[np.int64]]:
-    """Returns a the detector indices for each of the observing regions in
+    """Returns the detector indices for each of the observing regions in
     the given detector error model.
 
     Parameters
@@ -261,19 +261,19 @@ def get_detector_indices_for_subgraphs(
     dem
         Detector error model.
         All detectors must have coordinates defined, with the last coordinate element
-        representing time (or number of ticks).
+        representing time (or QEC round).
     stab_coords
         Coordinates of the X and Z stabilizers defined in `encoded_circuit` for
-        each of the (logical) qubits. The `i`th element in the list must correspond
-        to qubit index `i` in `unencoded_circuit`.
-        Each element must be a dictionary with keys `"X"` and `"Z"`, and values
-        corresponding to the ancilla coordinates of the specific stabilizer type.
+        each of the (logical) qubits. The ``i``th element in the list must correspond
+        to logical qubit index ``i``. Each element must be a dictionary with keys
+        ``"X"`` and ``"Z"``, and values corresponding to the ancilla coordinates of
+        the specific stabilizer type.
 
     Returns
     -------
     det_inds
         Detector indices inside each of the observing regions.
-        The length of `det_inds` matches the number of observables in ``dem``
+        The length of ``det_inds`` matches the number of observables in ``dem``
         and they are sorted following the observable indices.
     """
     if not isinstance(dem, stim.DetectorErrorModel):
@@ -313,7 +313,7 @@ def get_detector_indices_for_subgraphs(
                 coords_to_stab[coord] = (l_ind, stab_type)
 
     # get boundary edges that flip the observables
-    bd_edges_obs = {l: [] for l in range(dem.num_observables)}
+    bd_edges_obs: dict[int, list[int]] = {l: [] for l in range(dem.num_observables)}
     for instr in dem:
         if instr.type != "error":
             continue
@@ -327,7 +327,9 @@ def get_detector_indices_for_subgraphs(
             bd_edges_obs[o] += dets
 
     # identify (logical qubit, stabilizer type, time) for each boundary edge
-    lst_obs = {l: set() for l in range(dem.num_observables)}
+    lst_obs: dict[int, set[tuple[int, str, float]]] = {
+        l: set() for l in range(dem.num_observables)
+    }
     for obs, dets in bd_edges_obs.items():
         for det in dets:
             coords = det_to_coords[det]
@@ -336,9 +338,9 @@ def get_detector_indices_for_subgraphs(
             lst_obs[obs].add((l_ind, stab, time))
 
     # get all detectors for the given (logical qubit, stability type, time)
-    det_inds = []
+    det_inds: list[npt.NDArray[np.int64]] = []
     for obs in lst_obs:
-        inds = []
+        inds: list[int] = []
         for l_ind, stab, time in lst_obs[obs]:
             coords = [(*c, time) for c in stab_coords[l_ind][stab]]
             inds += [coords_to_det[c] for c in coords]

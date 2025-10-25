@@ -11,7 +11,7 @@ from .util import get_detector_indices_for_subgraphs, get_circuit_subgraph, Coor
 class MoMatching:
     """
     Decodes all observables in an (unconditional) logical transversal-Clifford
-    circuit with `pymatching.Matching`.
+    circuit with ``pymatching.Matching``.
     """
 
     def __init__(
@@ -34,10 +34,10 @@ class MoMatching:
             ``lomatching.remove_obs_except``. The QEC code must be CSS.
         stab_coords
             Coordinates of the X and Z stabilizers defined in `encoded_circuit` for
-            each of the (logical) qubits. The `i`th element in the list must correspond
-            to qubit index `i` in `unencoded_circuit`.
-            Each element must be a dictionary with keys `"X"` and `"Z"`, and values
-            corresponding to the ancilla coordinates of the specific stabilizer type.
+            each of the (logical) qubits. The ``i``th element in the list must correspond
+            to logical qubit index ``i``. Each element must be a dictionary with keys
+            ``"X"`` and ``"Z"``, and values corresponding to the ancilla coordinates of
+            the specific stabilizer type.
         allow_gauge_detectors
             Allow gauge detectors when calling ``stim.Circuit.detector_error_model``.
 
