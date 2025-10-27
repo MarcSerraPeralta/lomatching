@@ -48,8 +48,8 @@ class MoMatching:
         """
         if not isinstance(encoded_circuit, stim.Circuit):
             raise TypeError(
-                f"'encoded_circuit' must be a stim.Circuit, "
-                "but {type(encoded_circuit)} was given."
+                "'encoded_circuit' must be a stim.Circuit, "
+                f"but {type(encoded_circuit)} was given."
             )
         self._encoded_circuit: stim.Circuit = encoded_circuit
         self._num_obs: int = encoded_circuit.num_observables
@@ -94,7 +94,7 @@ class MoMatching:
         obs_correction = np.zeros(self._num_obs, dtype=bool)
         for k in range(self._num_obs):
             subsyndrome = syndrome[self._det_inds_subgraphs[k]]
-            obs_correction[k] = self._matching_subgraphs[k].decode(subsyndrome)[0]
+            obs_correction[k] = self._matching_subgraphs[k].decode(subsyndrome)[k]
         return obs_correction
 
     def decode_batch(
