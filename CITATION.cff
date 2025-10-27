@@ -17,7 +17,7 @@ abstract: >-
   in the surface code based on MWPM
 license: MIT
 commit: 88c5e1e78ee9813b2c4cfb0be6a0aa91894b195e
-version: 0.1.0
+version: 0.2.0
 date-released: '2025-04-07'
 preferred-citation:
   type: article
