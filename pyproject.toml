@@ -37,5 +37,5 @@ dev = [
     "flake8", 
     "flake8-print", 
     "pytest-flake8",
-    "surface-sim>=0.9.1",
+    "surface-sim>=0.10.0",
 ]
