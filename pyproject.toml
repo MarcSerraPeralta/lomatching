@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 requires-python = ">=3.10"
 name = "lomatching"
 description = "Logical observable decoder for transversal logical gates in surface codes based on pymatching." 
-version = "0.1.0"
+version = "0.2.0"
 authors = [
     { name = "Marc Serra Peralta", email = "marcserraperalta@gmail.com" }
 ]
