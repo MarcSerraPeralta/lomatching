@@ -1,3 +1,4 @@
+import numpy as np
 import stim
 from surface_sim.setups import CircuitNoiseSetup
 from surface_sim.models import CircuitNoiseModel
@@ -70,7 +71,8 @@ def test_MoMatching_performance():
     ]
     for gate_frame in ["pre-gate", "post-gate"]:
         for unencoded_circuit in unencoded_circuits:
-            log_prob = []
+            log_prob_decode = []
+            log_prob_decode_batch = []
             for distance in [3, 5, 7]:
                 layouts = unrot_surface_codes(
                     unencoded_circuit.num_qubits, distance=distance
@@ -102,9 +104,18 @@ def test_MoMatching_performance():
                 syndromes, log_flips, _ = sampler.sample(shots=10)
 
                 predictions = decoder.decode_batch(syndromes)
+                log_prob_decode_batch.append(
+                    (predictions != log_flips).any(axis=1).mean()
+                )
 
-                log_prob.append((predictions != log_flips).any(axis=1).mean())
+                predictions = np.array([decoder.decode(s) for s in syndromes])
+                log_prob_decode.append((predictions != log_flips).any(axis=1).mean())
 
-            assert log_prob[0] >= log_prob[1] >= log_prob[2]
+            assert (
+                log_prob_decode_batch[0]
+                >= log_prob_decode_batch[1]
+                >= log_prob_decode_batch[2]
+            )
+            assert log_prob_decode[0] >= log_prob_decode[1] >= log_prob_decode[2]
 
     return
