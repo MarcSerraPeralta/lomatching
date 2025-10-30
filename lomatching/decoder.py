@@ -219,10 +219,9 @@ class BeliefMoMatching:
 
             # find duplicates of errors in hyperdem_h when restricting to observing region
             duplicates = {}
+            det_inds_subgraph = set(self._det_inds_subgraphs[obs].tolist())
             for err_id, dets in enumerate(h):
-                dets_o = frozenset(dets).intersection(
-                    self._det_inds_subgraphs[obs].tolist()
-                )
+                dets_o = frozenset(dets).intersection(det_inds_subgraph)
                 if dets_o not in duplicates:
                     duplicates[dets_o] = [err_id]
                 else:
