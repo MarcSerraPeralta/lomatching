@@ -6,9 +6,9 @@ import numpy.typing as npt
 import numba as nb
 from numba.typed import List
 from galois import GF2
-from scipy.sparse import spmatrix
+from scipy.sparse import spmatrix, csc_matrix
 import stim
-from dem_decoders.transformations import _list_to_csc_matrix
+from dem_decoders.util import comb_probs
 
 Coords = tuple[float, ...]
 PauliRegion = dict[int, stim.PauliString]
@@ -392,6 +392,9 @@ def get_circuit_subgraph(
 
         if curr_det_ind in det_inds:
             new_circuit.append(instr)
+        else:
+            # keep the same number and relative order of detectors
+            new_circuit.append(stim.CircuitInstruction("DETECTOR", [], []))
 
         curr_det_ind += 1
 
@@ -427,30 +430,15 @@ def convert_to_numba_type(list_indices: list[list[int]]) -> list[list[int]]:
     return typed_list_indices
 
 
-def get_map_of_duplicates(from_: spmatrix, to_: spmatrix) -> list[list[int]]:
-    duplicates: list[list[int]] = []
-    for i in range(from_.shape[1]):
-        duplicates.append([])
-        for j in range(to_.shape[1]):
-            if (from_.getcol(i) != to_.getcol(j)).nnz:
-                continue
-            duplicates[-1].append(j)
-        if len(duplicates[-1]) == 0:
-            raise ValueError(f"Column {j} from 'from_' is not present in 'to_'.")
-    return duplicates
-
-
-def dem_to_matrices(
+def dem_to_hld_graph(
     dem: stim.DetectorErrorModel,
-) -> tuple[spmatrix, spmatrix, spmatrix, list[list[int]]]:
-    """Returns graph parity-check matrix, graph logical matrix, whole parity-check matrix,
-    support of edges in edges and hyperedges using the indices of both parity-check matrices.
-    """
-    h_graph_list, l_graph_list, h_list = [], [], []
-    decompositions = {}  # ind from h_list of a hyperedge -> decomposed detectors
-    edge_to_h_list_ind = (
-        {}
-    )  # detectors triggered by edge -> ind from h_list of that edge
+    det_inds_subgraph: npt.NDArray[np.int64],
+) -> tuple[spmatrix, spmatrix, list[list[frozenset[int]]]]:
+    h_graph_list, l_graph_list = [], []
+    dets_to_g_id = {}  # frozenset(detectors of edge) to g ID of that edge
+    edge_support = []
+    decompositions = {}  # frozenset(detectors) to [g IDs of decomposition]
+    det_inds_map = {int(ind): k for k, ind in enumerate(det_inds_subgraph)}
     for instr in dem.flattened():
         if instr.type != "error":
             continue
@@ -465,39 +453,111 @@ def dem_to_matrices(
             elif t.is_logical_observable_id():
                 l[-1].append(t.val)
             else:
-                raise TypeError(f"{t} is not a supported DemTarget.")
-
-        # flatten decomposition and add it always to h_list
-        d_xored = set()
-        for di in d:
-            d_xored.symmetric_difference_update(di)
-        h_list_ind = len(h_list)
-        h_list.append(tuple(sorted(d_xored)))
+                raise TypeError(f"{t} is not a supported stim.DemTarget.")
 
         # check if current line is an edge
         if len(d) == 1:
-            h_graph_list.append(d[0])
+            dets_to_g_id[frozenset(d[0])] = len(h_graph_list)
+            edge_support.append([frozenset(d[0])])
+            h_graph_list.append([det_inds_map[i] for i in d[0]])
             l_graph_list.append(l[0])
-
-            edge = tuple(sorted(d[0]))
-            edge_to_h_list_ind[edge] = h_list_ind
         else:
-            decompositions[h_list_ind] = d
+            d_xored = set()
+            for di in d:
+                d_xored.symmetric_difference_update(di)
+            decompositions[frozenset(d_xored)] = [frozenset(i) for i in d]
 
     h_graph = _list_to_csc_matrix(
-        h_graph_list, shape=(dem.num_detectors, len(h_graph_list))
+        h_graph_list, shape=(len(det_inds_subgraph), len(h_graph_list))
     )
     l_graph = _list_to_csc_matrix(
-        l_graph_list, shape=(dem.num_detectors, len(l_graph_list))
+        l_graph_list, shape=(dem.num_observables, len(l_graph_list))
     )
-    h = _list_to_csc_matrix(h_list, shape=(dem.num_detectors, len(h_list)))
 
-    dict_edge_support = {i: [i] for i in edge_to_h_list_ind.values()}
-    for h_list_ind, decomposition in decompositions.items():
-        for edge in decomposition:
-            edge_h_list_ind = edge_to_h_list_ind[tuple(sorted(edge))]
-            dict_edge_support[edge_h_list_ind].append(h_list_ind)
+    for d_xored, decomposition in decompositions.items():
+        for dets_edge in decomposition:
+            g_id = dets_to_g_id[dets_edge]
+            edge_support[g_id].append(d_xored)
 
-    edge_support = [dict_edge_support[i] for i in sorted(dict_edge_support)]
+    return h_graph, l_graph, edge_support
 
-    return h_graph, l_graph, h, edge_support
+
+def dem_to_hpl_list(dem):
+    det_err_list = []
+    err_probs_list = []
+    log_err_list = []
+
+    for instr in dem.flattened():
+        if instr.type == "error":
+            # get information
+            p = instr.args_copy()[0]
+            dets, logs = set(), set()
+            for t in instr.targets_copy():
+                if t.is_relative_detector_id():
+                    dets.symmetric_difference_update([t.val])
+                elif t.is_logical_observable_id():
+                    logs.symmetric_difference_update([t.val])
+                elif t.is_separator():
+                    pass
+                else:
+                    raise ValueError(f"{t} is not implemented.")
+            # append information
+            if dets in det_err_list:
+                idx = det_err_list.index(dets)
+                if logs != log_err_list[idx]:
+                    raise ValueError(
+                        f"Error {dets} and {det_err_list[idx]} trigger the same detectors,"
+                        " but have different logical effect."
+                    )
+                err_probs_list[idx] = comb_probs(p, err_probs_list[idx])
+            else:
+                det_err_list.append(dets)
+                err_probs_list.append(p)
+                log_err_list.append(logs)
+        elif instr.type == "detector":
+            pass
+        elif instr.type == "logical_observable":
+            pass
+        else:
+            raise ValueError(f"{instr} is not implemented.")
+
+    return det_err_list, err_probs_list, log_err_list
+
+
+def _list_to_csc_matrix(my_list: list[list[int]], shape: tuple[int, int]) -> spmatrix:
+    """Returns ``csc_matrix`` built form the given list.
+
+    The output matrix has all elements zero except in each column ``i`` it has
+    ones on the rows ``my_list[i]``.
+
+    Parameters
+    ----------
+    my_list
+        List of lists of integers containing the entries with ones in the csc_matrix.
+    shape
+        Shape of the ``csc_matrix``.
+
+    Returns
+    -------
+    matrix
+        The described ``csc_matrix`` with 0s and 1s.
+    """
+    if shape[1] < len(my_list):
+        raise ValueError(
+            "The shape of the csc_matrix is not large enough to accomodate all the data."
+        )
+
+    num_ones = sum(len(l) for l in my_list)
+    data = np.ones(
+        num_ones, dtype=np.uint8
+    )  # smallest integer size (bool operations do not work)
+    row_inds = np.empty(num_ones, dtype=int)
+    col_inds = np.empty(num_ones, dtype=int)
+    i = 0
+    for c, det_inds in enumerate(my_list):
+        for r in det_inds:
+            row_inds[i] = r
+            col_inds[i] = c
+            i += 1
+
+    return csc_matrix((data, (row_inds, col_inds)), shape=shape)

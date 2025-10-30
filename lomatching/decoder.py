@@ -7,7 +7,6 @@ import stim
 from pymatching import Matching
 from ldpc import BpDecoder
 from scipy.sparse import spmatrix
-from dem_decoders import dem_to_hplc
 
 from .util import (
     get_detector_indices_for_subgraphs,
@@ -15,8 +14,9 @@ from .util import (
     Coords,
     combine_probs,
     convert_to_numba_type,
-    get_map_of_duplicates,
-    dem_to_matrices,
+    dem_to_hpl_list,
+    dem_to_hld_graph,
+    _list_to_csc_matrix,
 )
 
 
@@ -189,10 +189,14 @@ class BeliefMoMatching:
         self._dem: stim.DetectorErrorModel = self._encoded_circuit.detector_error_model(
             allow_gauge_detectors=allow_gauge_detectors
         )
-        h, p, l, _ = dem_to_hplc(self._dem)
-        self._hyperdem_h: spmatrix = h
-        self._hyperdem_l: spmatrix = l
-        self._hyperdem_p: npt.NDArray[np.float64] = p
+        h, p, l = dem_to_hpl_list(self._dem)
+        self._hyperdem_h: spmatrix = _list_to_csc_matrix(
+            h, shape=(self._num_dets, len(h))
+        )
+        self._hyperdem_l: spmatrix = _list_to_csc_matrix(
+            l, shape=(self._num_obs, len(l))
+        )
+        self._hyperdem_p: npt.NDArray[np.float64] = np.array(p, dtype=float)
 
         self._bp_decoder: BpDecoder = BpDecoder(
             self._hyperdem_h,
@@ -213,16 +217,26 @@ class BeliefMoMatching:
                 allow_gauge_detectors=allow_gauge_detectors,
             )
 
-            h_graph, l_graph, h, edge_support = dem_to_matrices(subgraph)
-            map_duplicates = get_map_of_duplicates(
-                from_=h, to_=self._hyperdem_h[self._det_inds_subgraphs[obs]]
+            # find duplicates of errors in hyperdem_h when restricting to observing region
+            duplicates = {}
+            for err_id, dets in enumerate(h):
+                dets_o = frozenset(dets).intersection(
+                    self._det_inds_subgraphs[obs].tolist()
+                )
+                if dets_o not in duplicates:
+                    duplicates[dets_o] = [err_id]
+                else:
+                    duplicates[dets_o].append(err_id)
+
+            # get inputs for Matching
+            h_graph, l_graph, edge_support = dem_to_hld_graph(
+                subgraph, self._det_inds_subgraphs[obs]
             )
 
-            # edge_support: from h_graph to h
-            # map: from h to hyperdem_h
+            # edge_support: from g to h_o
+            # map: from h_o to hyperdem_h
             g_to_hyperdem_h = [
-                list(chain(*[map_duplicates[i] for i in hyperedges]))
-                for hyperedges in edge_support
+                list(chain(*[duplicates[h_o] for h_o in h_os])) for h_os in edge_support
             ]
 
             self._probs_indices.append(g_to_hyperdem_h)
