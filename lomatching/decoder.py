@@ -210,7 +210,10 @@ class BeliefMoMatching:
 
         for obs in range(self._num_obs):
             subcircuit = get_circuit_subgraph(
-                encoded_circuit, self._det_inds_subgraphs[obs], obs_inds=[obs]
+                encoded_circuit,
+                self._det_inds_subgraphs[obs],
+                obs_inds=[obs],
+                keep_detector_definitions=True,
             )
             subgraph = subcircuit.detector_error_model(
                 decompose_errors=True,

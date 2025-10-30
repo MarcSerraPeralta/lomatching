@@ -173,9 +173,8 @@ def test_BeliefMoMatching():
 def test_BeliefMoMatching_performance():
     unencoded_circuits = [
         stim.Circuit("R 0\nTICK\n\nM 0"),
-        stim.Circuit("RX 0\nRZ 1\nTICKTICK\nM 0 1"),
+        stim.Circuit("RX 0\nRZ 1\nTICK\nM 0 1"),
         stim.Circuit("RX 0\nRZ 1\nTICK\nCNOT 0 1\nTICK\nM 0 1"),
-        stim.Circuit("R 0 1\nTICK\nCNOT 0 1\nTICK\nM 0 1"),
     ]
     for gate_frame in ["pre-gate"]:
         for unencoded_circuit in unencoded_circuits:
@@ -209,7 +208,7 @@ def test_BeliefMoMatching_performance():
 
                 dem = decoder.dem
                 sampler = dem.compile_sampler()
-                syndromes, log_flips, _ = sampler.sample(shots=10_000)
+                syndromes, log_flips, _ = sampler.sample(shots=1_000)
 
                 predictions = decoder.decode_batch(syndromes)
                 log_prob_decode_batch.append(

@@ -7,7 +7,7 @@ from surface_sim.experiments import schedule_from_circuit, experiment_from_sched
 from surface_sim.circuit_blocks.unrot_surface_code_css import gate_to_iterator
 from surface_sim.layouts import unrot_surface_codes
 
-layouts = unrot_surface_codes(2, distance=3)
+layouts = unrot_surface_codes(2, distance=11)
 setup = CircuitNoiseSetup()
 setup.set_var_param("prob", 1e-3)
 model = CircuitNoiseModel.from_layouts(setup, *layouts)
@@ -22,10 +22,15 @@ unencoded_circuit = stim.Circuit(
     """
     RX 0 1
     TICK
+    TICK
+    TICK
+    TICK
     CNOT 1 0
     H 0 1
     TICK
+    TICK
     S 0
+    TICK
     TICK
     MZ 0 1
     """

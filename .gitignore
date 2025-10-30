@@ -163,3 +163,9 @@ cython_debug/
 
 # Annoying macOS files
 .DS_Store
+
+# data files
+*.pkl
+*.dot
+*.profile
+*.stim

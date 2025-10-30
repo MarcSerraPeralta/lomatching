@@ -358,6 +358,7 @@ def get_circuit_subgraph(
     circuit: stim.Circuit,
     det_inds: Collection[int],
     obs_inds: Collection[int] | None = None,
+    keep_detector_definitions: bool = False,
 ) -> stim.Circuit:
     """Returns the given circuit but with only the specified detectors."""
     if not isinstance(circuit, stim.Circuit):
@@ -393,8 +394,8 @@ def get_circuit_subgraph(
         if curr_det_ind in det_inds:
             new_circuit.append(instr)
         else:
-            # keep the same number and relative order of detectors
-            new_circuit.append(stim.CircuitInstruction("DETECTOR", [], []))
+            if keep_detector_definitions:
+                new_circuit.append(stim.CircuitInstruction("DETECTOR", [], []))
 
         curr_det_ind += 1
 
