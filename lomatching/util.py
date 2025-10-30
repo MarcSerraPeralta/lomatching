@@ -3,8 +3,12 @@ from collections.abc import Collection, Sequence
 from itertools import chain
 import numpy as np
 import numpy.typing as npt
+import numba as nb
+from numba.typed import List
 from galois import GF2
+from scipy.sparse import spmatrix
 import stim
+from dem_decoders.transformations import _list_to_csc_matrix
 
 Coords = tuple[float, ...]
 PauliRegion = dict[int, stim.PauliString]
@@ -351,7 +355,9 @@ def get_detector_indices_for_subgraphs(
 
 
 def get_circuit_subgraph(
-    circuit: stim.Circuit, det_inds: Collection[int]
+    circuit: stim.Circuit,
+    det_inds: Collection[int],
+    obs_inds: Collection[int] | None = None,
 ) -> stim.Circuit:
     """Returns the given circuit but with only the specified detectors."""
     if not isinstance(circuit, stim.Circuit):
@@ -365,13 +371,24 @@ def get_circuit_subgraph(
         )
     if any(not isinstance(d, (int, np.int64)) for d in det_inds):
         raise TypeError("Elements in 'det_inds' must be integers.")
+    if obs_inds is None:
+        obs_inds = list(range(circuit.num_observables))
+    if not isinstance(obs_inds, Collection):
+        raise TypeError(
+            f"'obs_inds' must be a collection, but {type(obs_inds)} was given."
+        )
+    if any(not isinstance(d, (int, np.int64)) for d in obs_inds):
+        raise TypeError("Elements in 'obs_inds' must be integers.")
 
     new_circuit = stim.Circuit()
     curr_det_ind = 0
     for instr in circuit:
-        if instr.name != "DETECTOR":
+        if instr.name not in ["DETECTOR", "OBSERVABLE_INCLUDE"]:
             new_circuit.append(instr)
             continue
+        if instr.name == "OBSERVABLE_INCLUDE":
+            if instr.gate_args_copy()[0] in obs_inds:
+                new_circuit.append(instr)
 
         if curr_det_ind in det_inds:
             new_circuit.append(instr)
@@ -379,3 +396,108 @@ def get_circuit_subgraph(
         curr_det_ind += 1
 
     return new_circuit
+
+
+@nb.jit()
+def g(p: float, q: float) -> float:
+    return p * (1 - q) + (1 - p) * q
+
+
+@nb.jit()
+def combine_probs(
+    probs: tuple[float], list_indices: list[list[int, ...]]
+) -> list[float]:
+    """For numba to work, ``list_indices`` must be numba typed, see ``convert_to_numba_type``."""
+    new_probs: list[float] = []
+    for indices in list_indices:
+        p = 0
+        for i in indices:
+            p = g(p, probs[i])
+        new_probs.append(p)
+    return new_probs
+
+
+def convert_to_numba_type(list_indices: list[list[int]]) -> list[list[int]]:
+    typed_list_indices = List()
+    for indices in list_indices:
+        typed_indices = List()
+        for i in indices:
+            typed_indices.append(i)
+        typed_list_indices.append(typed_indices)
+    return typed_list_indices
+
+
+def get_map_of_duplicates(from_: spmatrix, to_: spmatrix) -> list[list[int]]:
+    duplicates: list[list[int]] = []
+    for i in range(from_.shape[1]):
+        duplicates.append([])
+        for j in range(to_.shape[1]):
+            if (from_[:, i] != to_[:, j]).nnz:
+                continue
+            duplicates[-1].append(j)
+        if len(duplicates[-1]) == 0:
+            raise ValueError(f"Column {j} from 'from_' is not present in 'to_'.")
+    return duplicates
+
+
+def dem_to_matrices(
+    dem: stim.DetectorErrorModel,
+) -> tuple[spmatrix, spmatrix, spmatrix, list[list[int]]]:
+    """Returns graph parity-check matrix, graph logical matrix, whole parity-check matrix,
+    support of edges in edges and hyperedges using the indices of both parity-check matrices.
+    """
+    h_graph_list, l_graph_list, h_list = [], [], []
+    decompositions = {}  # ind from h_list of a hyperedge -> decomposed detectors
+    edge_to_h_list_ind = (
+        {}
+    )  # detectors triggered by edge -> ind from h_list of that edge
+    for instr in dem.flattened():
+        if instr.type != "error":
+            continue
+
+        d, l = [[]], [[]]
+        for t in instr.targets_copy():
+            if t.is_separator():
+                d.append([])
+                l.append([])
+            elif t.is_relative_detector_id():
+                d[-1].append(t.val)
+            elif t.is_logical_observable_id():
+                l[-1].append(t.val)
+            else:
+                raise TypeError(f"{t} is not a supported DemTarget.")
+
+        # flatten decomposition and add it always to h_list
+        d_xored = set()
+        for di in d:
+            d_xored.symmetric_difference_update(di)
+        h_list_ind = len(h_list)
+        h_list.append(tuple(sorted(d_xored)))
+
+        # check if current line is an edge
+        if len(d) == 1:
+            h_graph_list.append(d[0])
+            l_graph_list.append(l[0])
+
+            edge = tuple(sorted(d[0]))
+            edge_to_h_list_ind[edge] = h_list_ind
+        else:
+            decompositions[h_list_ind] = d
+
+    h_graph = _list_to_csc_matrix(
+        h_graph_list, shape=(dem.num_detectors, len(h_graph_list))
+    )
+    l_graph = _list_to_csc_matrix(
+        l_graph_list, shape=(dem.num_detectors, len(l_graph_list))
+    )
+    h = _list_to_csc_matrix(h_list, shape=(dem.num_detectors, len(h_list)))
+
+    dict_edge_support = {i: [i] for i in edge_to_h_list_ind.values()}
+    for h_list_ind, decomposition in decompositions.items():
+        for edge in decomposition:
+            edge_h_list_ind = edge_to_h_list_ind[tuple(sorted(edge))]
+            dict_edge_support[edge_h_list_ind].append(h_list_ind)
+
+    edge_support = [dict_edge_support[i] for i in sorted(dict_edge_support)]
+
+    return h_graph, l_graph, h, edge_support
