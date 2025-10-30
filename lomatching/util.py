@@ -432,7 +432,7 @@ def get_map_of_duplicates(from_: spmatrix, to_: spmatrix) -> list[list[int]]:
     for i in range(from_.shape[1]):
         duplicates.append([])
         for j in range(to_.shape[1]):
-            if (from_[:, i] != to_[:, j]).nnz:
+            if (from_.getcol(i) != to_.getcol(j)).nnz:
                 continue
             duplicates[-1].append(j)
         if len(duplicates[-1]) == 0:
