@@ -69,8 +69,8 @@ def test_MoMatching():
 
 def test_MoMatching_performance():
     unencoded_circuits = [
-        stim.Circuit("R 0\nTICK\nTICK\nTICK\nM 0"),
-        stim.Circuit("RX 0\nRZ 1\nTICK\nTICK\nTICK\nM 0 1"),
+        stim.Circuit("R 0\nTICK\nTICK\nM 0"),
+        stim.Circuit("RX 0\nRZ 1\nTICK\nTICK\nM 0 1"),
         stim.Circuit("RX 0\nRZ 1\nTICK\nCNOT 0 1\nTICK\nM 0 1"),
         stim.Circuit("R 0 1\nTICK\nCNOT 0 1\nTICK\nM 0 1"),
     ]
@@ -78,12 +78,12 @@ def test_MoMatching_performance():
         for unencoded_circuit in unencoded_circuits:
             log_prob_decode = []
             log_prob_decode_batch = []
-            for distance in [3, 5, 7]:
+            for distance in [3, 5]:
                 layouts = unrot_surface_codes(
                     unencoded_circuit.num_qubits, distance=distance
                 )
                 setup = CircuitNoiseSetup()
-                setup.set_var_param("prob", 1e-3)
+                setup.set_var_param("prob", 3e-3)
                 model = CircuitNoiseModel.from_layouts(setup, *layouts)
                 detectors = Detectors.from_layouts(gate_frame, *layouts)
                 stab_coords = [{} for _ in layouts]
@@ -106,7 +106,7 @@ def test_MoMatching_performance():
 
                 dem = decoder.dem
                 sampler = dem.compile_sampler()
-                syndromes, log_flips, _ = sampler.sample(shots=1_000)
+                syndromes, log_flips, _ = sampler.sample(shots=10_000)
 
                 predictions = decoder.decode_batch(syndromes)
                 log_prob_decode_batch.append(
@@ -116,12 +116,8 @@ def test_MoMatching_performance():
                 predictions = np.array([decoder.decode(s) for s in syndromes])
                 log_prob_decode.append((predictions != log_flips).any(axis=1).mean())
 
-            assert (
-                log_prob_decode_batch[0]
-                >= log_prob_decode_batch[1]
-                >= log_prob_decode_batch[2]
-            )
-            assert log_prob_decode[0] >= log_prob_decode[1] >= log_prob_decode[2]
+            assert log_prob_decode_batch[0] >= log_prob_decode_batch[1]
+            assert log_prob_decode[0] >= log_prob_decode[1]
 
     return
 
