@@ -8,7 +8,6 @@ from numba.typed import List
 from galois import GF2
 from scipy.sparse import spmatrix, csc_matrix
 import stim
-from dem_decoders.util import comb_probs
 
 Coords = tuple[float, ...]
 PauliRegion = dict[int, stim.PauliString]
@@ -510,7 +509,7 @@ def dem_to_hpl_list(dem):
                         f"Error {dets} and {det_err_list[idx]} trigger the same detectors,"
                         " but have different logical effect."
                     )
-                err_probs_list[idx] = comb_probs(p, err_probs_list[idx])
+                err_probs_list[idx] = g(p, err_probs_list[idx])
             else:
                 det_err_list.append(dets)
                 err_probs_list.append(p)
