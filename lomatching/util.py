@@ -3,7 +3,10 @@ from collections.abc import Collection, Sequence
 from itertools import chain
 import numpy as np
 import numpy.typing as npt
+import numba as nb
+from numba.typed import List
 from galois import GF2
+from scipy.sparse import spmatrix, csc_matrix
 import stim
 
 Coords = tuple[float, ...]
@@ -351,7 +354,10 @@ def get_detector_indices_for_subgraphs(
 
 
 def get_circuit_subgraph(
-    circuit: stim.Circuit, det_inds: Collection[int]
+    circuit: stim.Circuit,
+    det_inds: Collection[int],
+    obs_inds: Collection[int] | None = None,
+    keep_detector_definitions: bool = False,
 ) -> stim.Circuit:
     """Returns the given circuit but with only the specified detectors."""
     if not isinstance(circuit, stim.Circuit):
@@ -365,17 +371,193 @@ def get_circuit_subgraph(
         )
     if any(not isinstance(d, (int, np.int64)) for d in det_inds):
         raise TypeError("Elements in 'det_inds' must be integers.")
+    if obs_inds is None:
+        obs_inds = list(range(circuit.num_observables))
+    if not isinstance(obs_inds, Collection):
+        raise TypeError(
+            f"'obs_inds' must be a collection, but {type(obs_inds)} was given."
+        )
+    if any(not isinstance(d, (int, np.int64)) for d in obs_inds):
+        raise TypeError("Elements in 'obs_inds' must be integers.")
 
     new_circuit = stim.Circuit()
     curr_det_ind = 0
     for instr in circuit:
-        if instr.name != "DETECTOR":
+        if instr.name not in ["DETECTOR", "OBSERVABLE_INCLUDE"]:
             new_circuit.append(instr)
             continue
+        if instr.name == "OBSERVABLE_INCLUDE":
+            if instr.gate_args_copy()[0] in obs_inds:
+                new_circuit.append(instr)
 
         if curr_det_ind in det_inds:
             new_circuit.append(instr)
+        else:
+            if keep_detector_definitions:
+                new_circuit.append(stim.CircuitInstruction("DETECTOR", [], []))
 
         curr_det_ind += 1
 
     return new_circuit
+
+
+@nb.jit()
+def g(p: float, q: float) -> float:
+    return p * (1 - q) + (1 - p) * q
+
+
+@nb.jit()
+def combine_probs(
+    probs: tuple[float], list_indices: list[list[int, ...]]
+) -> list[float]:
+    """For numba to work, ``list_indices`` must be numba typed, see ``convert_to_numba_type``."""
+    new_probs: list[float] = []
+    for indices in list_indices:
+        p = 0
+        for i in indices:
+            p = g(p, probs[i])
+        new_probs.append(p)
+    return new_probs
+
+
+def convert_to_numba_type(list_indices: list[list[int]]) -> list[list[int]]:
+    typed_list_indices = List()
+    for indices in list_indices:
+        typed_indices = List()
+        for i in indices:
+            typed_indices.append(i)
+        typed_list_indices.append(typed_indices)
+    return typed_list_indices
+
+
+def dem_to_hld_graph(
+    dem: stim.DetectorErrorModel,
+    det_inds_subgraph: npt.NDArray[np.int64],
+) -> tuple[spmatrix, spmatrix, list[list[frozenset[int]]]]:
+    h_graph_list, l_graph_list = [], []
+    dets_to_g_id = {}  # frozenset(detectors of edge) to g ID of that edge
+    edge_support = []
+    decompositions = {}  # frozenset(detectors) to [g IDs of decomposition]
+    det_inds_map = {int(ind): k for k, ind in enumerate(det_inds_subgraph)}
+    for instr in dem.flattened():
+        if instr.type != "error":
+            continue
+
+        d, l = [[]], [[]]
+        for t in instr.targets_copy():
+            if t.is_separator():
+                d.append([])
+                l.append([])
+            elif t.is_relative_detector_id():
+                d[-1].append(t.val)
+            elif t.is_logical_observable_id():
+                l[-1].append(t.val)
+            else:
+                raise TypeError(f"{t} is not a supported stim.DemTarget.")
+
+        # check if current line is an edge
+        if len(d) == 1:
+            dets_to_g_id[frozenset(d[0])] = len(h_graph_list)
+            edge_support.append([frozenset(d[0])])
+            h_graph_list.append([det_inds_map[i] for i in d[0]])
+            l_graph_list.append(l[0])
+        else:
+            d_xored = set()
+            for di in d:
+                d_xored.symmetric_difference_update(di)
+            decompositions[frozenset(d_xored)] = [frozenset(i) for i in d]
+
+    h_graph = _list_to_csc_matrix(
+        h_graph_list, shape=(len(det_inds_subgraph), len(h_graph_list))
+    )
+    l_graph = _list_to_csc_matrix(
+        l_graph_list, shape=(dem.num_observables, len(l_graph_list))
+    )
+
+    for d_xored, decomposition in decompositions.items():
+        for dets_edge in decomposition:
+            g_id = dets_to_g_id[dets_edge]
+            edge_support[g_id].append(d_xored)
+
+    return h_graph, l_graph, edge_support
+
+
+def dem_to_hpl_list(dem):
+    det_err_list = []
+    err_probs_list = []
+    log_err_list = []
+
+    for instr in dem.flattened():
+        if instr.type == "error":
+            # get information
+            p = instr.args_copy()[0]
+            dets, logs = set(), set()
+            for t in instr.targets_copy():
+                if t.is_relative_detector_id():
+                    dets.symmetric_difference_update([t.val])
+                elif t.is_logical_observable_id():
+                    logs.symmetric_difference_update([t.val])
+                elif t.is_separator():
+                    pass
+                else:
+                    raise ValueError(f"{t} is not implemented.")
+            # append information
+            if dets in det_err_list:
+                idx = det_err_list.index(dets)
+                if logs != log_err_list[idx]:
+                    raise ValueError(
+                        f"Error {dets} and {det_err_list[idx]} trigger the same detectors,"
+                        " but have different logical effect."
+                    )
+                err_probs_list[idx] = g(p, err_probs_list[idx])
+            else:
+                det_err_list.append(dets)
+                err_probs_list.append(p)
+                log_err_list.append(logs)
+        elif instr.type == "detector":
+            pass
+        elif instr.type == "logical_observable":
+            pass
+        else:
+            raise ValueError(f"{instr} is not implemented.")
+
+    return det_err_list, err_probs_list, log_err_list
+
+
+def _list_to_csc_matrix(my_list: list[list[int]], shape: tuple[int, int]) -> spmatrix:
+    """Returns ``csc_matrix`` built form the given list.
+
+    The output matrix has all elements zero except in each column ``i`` it has
+    ones on the rows ``my_list[i]``.
+
+    Parameters
+    ----------
+    my_list
+        List of lists of integers containing the entries with ones in the csc_matrix.
+    shape
+        Shape of the ``csc_matrix``.
+
+    Returns
+    -------
+    matrix
+        The described ``csc_matrix`` with 0s and 1s.
+    """
+    if shape[1] < len(my_list):
+        raise ValueError(
+            "The shape of the csc_matrix is not large enough to accomodate all the data."
+        )
+
+    num_ones = sum(len(l) for l in my_list)
+    data = np.ones(
+        num_ones, dtype=np.uint8
+    )  # smallest integer size (bool operations do not work)
+    row_inds = np.empty(num_ones, dtype=int)
+    col_inds = np.empty(num_ones, dtype=int)
+    i = 0
+    for c, det_inds in enumerate(my_list):
+        for r in det_inds:
+            row_inds[i] = r
+            col_inds[i] = c
+            i += 1
+
+    return csc_matrix((data, (row_inds, col_inds)), shape=shape)
