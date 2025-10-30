@@ -389,6 +389,7 @@ def get_circuit_subgraph(
         if instr.name == "OBSERVABLE_INCLUDE":
             if instr.gate_args_copy()[0] in obs_inds:
                 new_circuit.append(instr)
+            continue
 
         if curr_det_ind in det_inds:
             new_circuit.append(instr)
