@@ -23,7 +23,6 @@ dependencies = [
     "galois",
     "ldpc",
     "numba",
-    "dem-decoders",
 ]
 keywords = ["MWPM", "QEC", "quantum error correction", "logical-gates", "decoder"]
 
