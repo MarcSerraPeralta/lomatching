@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+requires-python = ">=3.10"
+name = "lomatching"
+description = "Logical observable decoder for transversal logical gates in surface codes based on pymatching." 
+version = "0.2.1"
+authors = [
+    { name = "Marc Serra Peralta", email = "marcserraperalta@gmail.com" }
+]
+maintainers = [
+    { name = "Marc Serra Peralta", email = "marcserraperalta@gmail.com" }
+]
+license = {file = "LICENSE"}
+readme = "README.md"
+dependencies = [
+    "numpy",
+    "stim",
+    "pymatching",
+    "matplotlib",
+    "galois",
+    "ldpc",
+    "numba",
+]
+keywords = ["MWPM", "QEC", "quantum error correction", "logical-gates", "decoder"]
+
+[tool.setuptools.packages.find]
+include = ["lomatching", "lomatching.*"]  # package names should match these glob patterns (["*"] by default)
+namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
+
+[project.optional-dependencies]
+dev = [
+    "pip-tools", 
+    "pytest", 
+    "black", 
+    "pytest-black", 
+    "flake8", 
+    "flake8-print", 
+    "pytest-flake8",
+    "surface-sim>=0.10.0",
+    "gprof2dot",
+]
