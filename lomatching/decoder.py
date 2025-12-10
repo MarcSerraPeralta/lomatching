@@ -269,7 +269,8 @@ class BeliefMoMatching:
             ps_e = combine_probs(ps_h, convert_to_numba_type(self._probs_indices[k]))
             matching = Matching.from_check_matrix(
                 self._graphdems_h[k],
-                weights=-np.log(ps_e),
+                # avoid error due to pymatching max weight
+                weights=np.clip(-np.log(ps_e), 0, 16777215 - 1),
                 faults_matrix=self._graphdems_l[k],
                 use_virtual_boundary_node=True,
             )
