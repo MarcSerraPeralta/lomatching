@@ -483,7 +483,9 @@ def dem_to_hld_graph(
     return h_graph, l_graph, edge_support
 
 
-def dem_to_hpl_list(dem: stim.DetectorErrorModel) -> list[list[int]]:
+def dem_to_hpl_list(
+    dem: stim.DetectorErrorModel,
+) -> tuple[list[list[int]], list[list[int]], list[list[int]]]:
     """
     Converts the DEM into lists that can then be transformed to CSC matrices.
 
