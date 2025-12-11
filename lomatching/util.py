@@ -492,7 +492,7 @@ def dem_to_hpl_list(
     Parameters
     ----------
     dem
-        Detector error model. Each ``error`` instruction should trigger
+        Detector error model. Each ``error`` instruction must trigger
         a unique set of detectors and must not contain separators (from
         error decompositions).
 
