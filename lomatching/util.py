@@ -483,38 +483,46 @@ def dem_to_hld_graph(
     return h_graph, l_graph, edge_support
 
 
-def dem_to_hpl_list(dem):
+def dem_to_hpl_list(
+    dem: stim.DetectorErrorModel,
+) -> tuple[list[list[int]], list[list[int]], list[list[int]]]:
+    """
+    Converts the DEM into lists that can then be transformed to CSC matrices.
+
+    Parameters
+    ----------
+    dem
+        Detector error model. Each ``error`` instruction must trigger
+        a unique set of detectors and must not contain separators (from
+        error decompositions).
+
+    Returns
+    -------
+    det_err_list
+        The ``i``th element corresponds to the detectors indices flipped by the
+        ``i``th ``error`` instruction in ``dem``.
+    err_probs_list
+        The ``i``th element corresponds to the error probability of the
+        ``i``th ``error`` instruction in ``dem``.
+    log_err_list
+        The ``i``th element corresponds to the observable indices flipped by the
+        ``i``th ``error`` instruction in ``dem``.
+    """
     det_err_list = []
     err_probs_list = []
     log_err_list = []
 
     for instr in dem.flattened():
         if instr.type == "error":
-            # get information
             p = instr.args_copy()[0]
-            dets, logs = set(), set()
-            for t in instr.targets_copy():
-                if t.is_relative_detector_id():
-                    dets.symmetric_difference_update([t.val])
-                elif t.is_logical_observable_id():
-                    logs.symmetric_difference_update([t.val])
-                elif t.is_separator():
-                    pass
-                else:
-                    raise ValueError(f"{t} is not implemented.")
-            # append information
-            if dets in det_err_list:
-                idx = det_err_list.index(dets)
-                if logs != log_err_list[idx]:
-                    raise ValueError(
-                        f"Error {dets} and {det_err_list[idx]} trigger the same detectors,"
-                        " but have different logical effect."
-                    )
-                err_probs_list[idx] = g(p, err_probs_list[idx])
-            else:
-                det_err_list.append(dets)
-                err_probs_list.append(p)
-                log_err_list.append(logs)
+            dets = [t.val for t in instr.targets_copy() if t.is_relative_detector_id()]
+            logs = [t.val for t in instr.targets_copy() if t.is_logical_observable_id()]
+            if any(t.is_separator() for t in instr.targets_copy()):
+                raise ValueError("Decomposed error found in DEM.")
+
+            det_err_list.append(dets)
+            err_probs_list.append(p)
+            log_err_list.append(logs)
         elif instr.type == "detector":
             pass
         elif instr.type == "logical_observable":

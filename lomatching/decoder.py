@@ -270,7 +270,7 @@ class BeliefMoMatching:
             matching = Matching.from_check_matrix(
                 self._graphdems_h[k],
                 # avoid error due to pymatching max weight
-                weights=np.clip(-np.log(ps_e), 0, 16777215 - 1),
+                weights=np.clip(-np.log(ps_e), 0, 16777215 - 100),
                 faults_matrix=self._graphdems_l[k],
                 use_virtual_boundary_node=True,
             )
