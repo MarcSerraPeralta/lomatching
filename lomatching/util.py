@@ -512,7 +512,7 @@ def dem_to_hpl_list(
     err_probs_list = []
     log_err_list = []
 
-    for i, instr in enumerate(dem.flattened()):
+    for instr in dem.flattened():
         if instr.type == "error":
             p = instr.args_copy()[0]
             dets = [t.val for t in instr.targets_copy() if t.is_relative_detector_id()]
