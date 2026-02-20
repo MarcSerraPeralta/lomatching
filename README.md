@@ -83,14 +83,19 @@ print("Logical error probability:", np.average(log_errors))
 
 When using `lomatching` for research, please cite:
 ```
-@misc{serraperalta2025decoding,
-      title={Decoding across transversal Clifford gates in the surface code}, 
-      author={Marc Serra-Peralta and Mackenzie H. Shaw and Barbara M. Terhal},
-      year={2025},
-      eprint={2505.13599},
-      archivePrefix={arXiv},
-      primaryClass={quant-ph},
-      url={https://arxiv.org/abs/2505.13599}, 
+@article{lomatching,
+  title = {Decoding across Transversal Clifford Gates in the Surface Code},
+  author = {Serra-Peralta, Marc and Shaw, Mackenzie H. and Terhal, Barbara M.},
+  journal = {PRX Quantum},
+  volume = {7},
+  issue = {1},
+  pages = {010335},
+  numpages = {41},
+  year = {2026},
+  month = {Feb},
+  publisher = {American Physical Society},
+  doi = {10.1103/sk5y-25b1},
+  url = {https://link.aps.org/doi/10.1103/sk5y-25b1}
 }
 ```
 
