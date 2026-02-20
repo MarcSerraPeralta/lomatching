@@ -25,13 +25,13 @@ preferred-citation:
   - given-names: Marc
     family-names: Serra-Peralta
     email: m.serraperalta@tudeflt.nl
-  - given-names: Mackenzie H. Shaw
+  - given-names: Mackenzie H.
     family-names: Shaw
   - given-names: Barbara M.
     family-names: Terhal
-  doi: "10.48550/arXiv.2505.13599"
-  url: https://arxiv.org/abs/2505.13599
-  journal: "arXiv preprint"
-  month: 5
-  title: "Decoding across transversal Clifford gates in the surface code"
-  year: 2025
+  doi: "10.1103/sk5y-25b1"
+  url: https://link.aps.org/doi/10.1103/sk5y-25b1
+  journal: "PRX Quantum"
+  month: 2
+  title: "Decoding across Transversal Clifford Gates in the Surface Code"
+  year: 2026
