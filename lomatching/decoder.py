@@ -141,6 +141,11 @@ class MoMatching:
             raise TypeError(
                 f"'syndrome' must be a vector, but shape {syndrome.shape} was given."
             )
+        if len(syndrome) != self._num_dets:
+            raise TypeError(
+                "The length of 'syndrome' must match the number of detectors "
+                f"({self._num_dets}), but {len(syndrome)} was given."
+            )
 
         obs_correction = np.zeros(self._num_obs, dtype=bool)
         for k in range(self._num_obs):
