@@ -1,5 +1,4 @@
 import stim
-from surface_sim.setups import CircuitNoiseSetup
 from surface_sim.models import IncResMeasNoiseModel
 from surface_sim import Detectors
 from surface_sim.experiments import schedule_from_circuit, experiment_from_schedule
@@ -249,10 +248,9 @@ def test_remove_obs_except():
 
 def test_get_circuit_subgraph():
     layouts = unrot_surface_codes(2, distance=3)
-    setup = CircuitNoiseSetup()
-    setup.set_var_param("prob", 1e-3)
-    model = IncResMeasNoiseModel.from_layouts(setup, *layouts)
-    detectors = Detectors.from_layouts("pre-gate", *layouts)
+    model = IncResMeasNoiseModel.from_layouts(*layouts)
+    model.setup.set_var_param("prob", 1e-3)
+    detectors = Detectors.from_layouts(*layouts, frame="pre-gate")
     stab_coords = [{} for _ in layouts]
     for l, layout in enumerate(layouts):
         coords = layout.anc_coords
