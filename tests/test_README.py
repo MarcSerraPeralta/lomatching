@@ -41,7 +41,7 @@ def test_README():
     reliable_obs = get_reliable_observables(encoded_circuit)
     encoded_circuit = remove_obs_except(encoded_circuit, reliable_obs)
 
-    decoder = MoMatching(encoded_circuit, stab_coords)
+    decoder = MoMatching.from_circuit(encoded_circuit, stab_coords)
 
     # run MoMatching
     sampler = encoded_circuit.detector_error_model().compile_sampler()
