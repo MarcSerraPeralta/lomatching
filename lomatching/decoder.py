@@ -28,12 +28,56 @@ class MoMatching:
 
     def __init__(
         self,
+        dem: stim.DetectorErrorModel,
+        dem_subgraphs: Sequence[stim.DetectorErrorModel],
+        det_inds_subgraphs: Sequence[npt.NDArray[np.int64]],
+    ):
+        """
+        Initializes a ``MoMatching`` decoder.
+
+        Parameters
+        ----------
+        dem
+            Detector error model of the encoded circuit.
+            See ``MoMatching.from_circuit`` for the requirements of the
+            encoded circuit.
+        dem_subgraphs
+            Detector error model subgraphs from ``dem`` for each of the
+            (reliable) observables. The ``i``th element must contain
+            the ``i``th (reliable) observable to decode with ID equal to ``i``,
+            that is: ``L{i}`` in ``stim.DetectorErrorModel``.
+        det_inds_subgraphs
+            Detector indices for the nodes in each element of ``dem_subgraphs``.
+            The syndrome given to ``pymatching.Matching`` for the ``i``th observable
+            is ``syndrome[det_inds_subgraphs[i]]``.
+
+        Notes
+        -----
+        See example in the ``README.md`` file.
+        """
+
+        self._dem: stim.DetectorErrorModel = dem
+        self._num_obs: int = dem.num_observables
+        self._num_dets: int = dem.num_detectors
+
+        self._det_inds_subgraphs: Sequence[npt.NDArray[np.int64]] = det_inds_subgraphs
+
+        self._dem_subgraphs: Sequence[stim.DetectorErrorModel] = dem_subgraphs
+        self._matching_subgraphs: list[Matching] = []
+        for subgraph in dem_subgraphs:
+            self._matching_subgraphs.append(Matching(subgraph))
+
+        return
+
+    @classmethod
+    def from_circuit(
+        cls,
         encoded_circuit: stim.Circuit,
         stab_coords: Sequence[dict[str, Collection[Coords]]],
         allow_gauge_detectors: bool = False,
     ):
         """
-        Initializes a ``MoMatching`` decoder.
+        Initializes a ``MoMatching`` decoder from an encoded circuit.
 
         Parameters
         ----------
@@ -63,34 +107,27 @@ class MoMatching:
                 "'encoded_circuit' must be a stim.Circuit, "
                 f"but {type(encoded_circuit)} was given."
             )
-        self._encoded_circuit: stim.Circuit = encoded_circuit
-        self._num_obs: int = encoded_circuit.num_observables
-        self._num_dets: int = encoded_circuit.num_detectors
 
-        self._dem_subgraphs: list[stim.DetectorErrorModel] = []
-        self._matching_subgraphs: list[Matching] = []
-        self._det_inds_subgraphs: list[npt.NDArray[np.int64]] = []
-
-        self._dem: stim.DetectorErrorModel = self._encoded_circuit.detector_error_model(
+        dem: stim.DetectorErrorModel = encoded_circuit.detector_error_model(
             allow_gauge_detectors=allow_gauge_detectors
         )
 
-        self._det_inds_subgraphs = get_detector_indices_for_subgraphs(
-            self._dem, stab_coords
-        )
+        det_inds_subgraphs = get_detector_indices_for_subgraphs(dem, stab_coords)
 
-        for obs in range(self._num_obs):
-            subcircuit = get_circuit_subgraph(
-                encoded_circuit, self._det_inds_subgraphs[obs]
-            )
+        dem_subgraphs: list[stim.DetectorErrorModel] = []
+        for obs in range(encoded_circuit.num_observables):
+            subcircuit = get_circuit_subgraph(encoded_circuit, det_inds_subgraphs[obs])
             subgraph = subcircuit.detector_error_model(
                 decompose_errors=True,
                 allow_gauge_detectors=allow_gauge_detectors,
             )
-            self._dem_subgraphs.append(subgraph)
-            self._matching_subgraphs.append(Matching(subgraph))
+            dem_subgraphs.append(subgraph)
 
-        return
+        return cls(
+            det_inds_subgraphs=det_inds_subgraphs,
+            dem_subgraphs=dem_subgraphs,
+            dem=dem,
+        )
 
     @property
     def dem(self):

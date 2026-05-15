@@ -50,7 +50,7 @@ def test_MoMatching():
         schedule, model, detectors, anc_reset=True, anc_detectors=None
     )
 
-    decoder = MoMatching(encoded_circuit, stab_coords)
+    decoder = MoMatching.from_circuit(encoded_circuit, stab_coords)
 
     dem = decoder.dem
     sampler = dem.compile_sampler()
@@ -99,7 +99,7 @@ def test_MoMatching_performance():
                     encoded_circuit, get_reliable_observables(encoded_circuit)
                 )
 
-                decoder = MoMatching(encoded_circuit, stab_coords)
+                decoder = MoMatching.from_circuit(encoded_circuit, stab_coords)
 
                 dem = decoder.dem
                 sampler = dem.compile_sampler()
