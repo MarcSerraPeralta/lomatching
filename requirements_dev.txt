@@ -151,7 +151,7 @@ stim==1.15.0
     #   lomatching (pyproject.toml)
     #   sinter
     #   surface-sim
-surface-sim==0.10.0
+surface-sim==0.10.1
     # via lomatching (pyproject.toml)
 toml==0.10.2
     # via pytest-black
