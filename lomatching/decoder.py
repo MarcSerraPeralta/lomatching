@@ -47,9 +47,11 @@ class MoMatching:
             the ``i``th (reliable) observable to decode with ID equal to ``i``,
             that is: ``L{i}`` in ``stim.DetectorErrorModel``.
         det_inds_subgraphs
-            Detector indices for the nodes in each element of ``dem_subgraphs``.
+            Detector indices for the nodes in each element of ``dem_subgraphs``
+            with respect to the indexing from ``dem``.
             The syndrome given to ``pymatching.Matching`` for the ``i``th observable
-            is ``syndrome[det_inds_subgraphs[i]]``.
+            is ``syndrome[det_inds_subgraphs[i]]`` with ``syndrome`` a syndrome
+            sampled from ``dem``.
 
         Notes
         -----
