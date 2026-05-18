@@ -252,7 +252,106 @@ def remove_obs_except(
     return new_circuit
 
 
-def get_detector_indices_for_subgraphs(
+def get_detector_indices_for_subgraphs_from_circuit(
+    unencoded_circuit: stim.Circuit,
+    det_to_coords: dict[int, list[float]] | dict[int, Sequence[int | float]],
+    stab_coords: Sequence[dict[str, Collection[Coords]]],
+) -> list[npt.NDArray[np.int64]]:
+    """Returns the detector indices for each of the observing regions in
+    the given unencoded circuit.
+
+    Parameters
+    ----------
+    unencoded_circuit
+        Stim circuit with the ``TICK`` instructions representing QEC cycles,
+        and ``OBSERVABLE_INCLUDE`` instructions representing the logical observables.
+    det_to_coords
+        Dictionary mapping detector indices to their coordinates.
+        It can be generated with ``encoded_circuit.get_detector_coordinates()``
+        with ``encoded_circuit`` the encoded version of ``unencoded_circuit``.
+        All detectors must have coordinates defined, with the last coordinate element
+        representing time (or QEC cycle).
+    stab_coords
+        Coordinates of the X and Z stabilizers defined in the encoded version
+        of ``unencoded_circuit`` for each of the (logical) qubits.
+        The ``i``th element in the list must correspond to logical qubit index ``i``.
+        Each element must be a dictionary with keys ``"X"`` and ``"Z"``,
+        and values corresponding to the ancilla coordinates of the specific
+        stabilizer type.
+
+    Returns
+    -------
+    det_inds
+        Detector indices inside each of the observing regions.
+        The length of ``det_inds`` matches the number of observables in
+        ``unencoded_circuit`` and they are sorted following the observable indices.
+    """
+    if not isinstance(unencoded_circuit, stim.Circuit):
+        raise TypeError(
+            f"'unencoded_circuit' must be a stim.Circuit, but {type(unencoded_circuit)} was given."
+        )
+    unencoded_circuit = unencoded_circuit.flattened()
+
+    if not isinstance(det_to_coords, dict):
+        raise TypeError(
+            f"'det_to_coords' must be a dict, but {type(det_to_coords)} was given."
+        )
+    if any(not isinstance(d, int) for d in det_to_coords):
+        raise TypeError("Keys in 'det_to_coords' must be ints.")
+    if any(not isinstance(c, Sequence) for c in det_to_coords.values()):
+        raise TypeError(
+            "Values in 'det_to_coords' must be sequences of ints or floats."
+        )
+
+    if any(not isinstance(l, dict) for l in stab_coords):
+        raise TypeError("Elements of 'stab_coords' must be dictionaries.")
+    if any(set(l.keys()) < set(["X", "Z"]) for l in stab_coords):
+        raise ValueError(
+            "Elements of 'stab_coords' must have 'X' and 'Z' as dict keys."
+        )
+    for stab_type in ["X", "Z"]:
+        if any(not isinstance(l[stab_type], Collection) for l in stab_coords):
+            raise TypeError(
+                "Elements of 'stab_coords' must have collections as dict values."
+            )
+        for coord in chain(*[l[stab_type] for l in stab_coords]):
+            if not isinstance(coord, tuple):
+                raise TypeError("Coordinates must be tuples.")
+            if any(not isinstance(i, (float, int)) for i in coord):
+                raise TypeError("Coordinates must be tuple[float].")
+
+    coords_to_det = {tuple(map(float, c)): d for d, c in det_to_coords.items()}
+
+    # get (logical qubit, stabilizer type, time) for each QEC cycle to
+    # get all detectors for the given (logical qubit, stability type, time).
+    det_inds: list[npt.NDArray[np.int64]] = []
+    for obs in range(unencoded_circuit.num_observables):
+        obs_region = get_observing_region(unencoded_circuit, [obs])
+
+        det_slices: set[tuple[int, str, float]] = set()
+        for time, pauli in obs_region.items():
+            for l_ind, p_ind in enumerate(pauli):
+                # p_ind: 0=I, 1=X, 2=Y, 3=Z.
+                # for Y, two det slices need to be added: X and Z.
+                if p_ind == 0:
+                    continue
+                if p_ind in [1, 2]:
+                    det_slices.add((l_ind, "X", time))
+                if p_ind in [3, 2]:
+                    det_slices.add((l_ind, "Z", time))
+
+        inds: list[int] = []
+        for l_ind, stab, time in det_slices:
+            coords = [(*c, time) for c in stab_coords[l_ind][stab]]
+            inds += [coords_to_det[c] for c in coords]
+        # indices need to be sorted to match the indices order in the dem!
+        # (when doing syndrome[det_inds])
+        det_inds.append(np.array(sorted(inds), dtype=int))
+
+    return det_inds
+
+
+def get_detector_indices_for_subgraphs_from_dem(
     dem: stim.DetectorErrorModel,
     stab_coords: Sequence[dict[str, Collection[Coords]]],
 ) -> list[npt.NDArray[np.int64]]:
@@ -266,7 +365,7 @@ def get_detector_indices_for_subgraphs(
         All detectors must have coordinates defined, with the last coordinate element
         representing time (or QEC round).
     stab_coords
-        Coordinates of the X and Z stabilizers defined in `encoded_circuit` for
+        Coordinates of the X and Z stabilizers defined in the encoded circuit for
         each of the (logical) qubits. The ``i``th element in the list must correspond
         to logical qubit index ``i``. Each element must be a dictionary with keys
         ``"X"`` and ``"Z"``, and values corresponding to the ancilla coordinates of
@@ -348,6 +447,7 @@ def get_detector_indices_for_subgraphs(
             coords = [(*c, time) for c in stab_coords[l_ind][stab]]
             inds += [coords_to_det[c] for c in coords]
         # indices need to be sorted to match the indices order in the dem!
+        # (when doing syndrome[det_inds])
         det_inds.append(np.array(sorted(inds), dtype=int))
 
     return det_inds
