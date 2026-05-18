@@ -263,13 +263,14 @@ def get_detector_indices_for_subgraphs_from_circuit(
     Parameters
     ----------
     unencoded_circuit
-        Stim circuit with the ``TICK`` instructions representing QEC cycles.
+        Stim circuit with the ``TICK`` instructions representing QEC cycles,
+        and ``OBSERVABLE_INCLUDE`` instructions representing the logical observables.
     det_to_coords
         Dictionary mapping detector indices to their coordinates.
         It can be generated with ``encoded_circuit.get_detector_coordinates()``
         with ``encoded_circuit`` the encoded version of ``unencoded_circuit``.
         All detectors must have coordinates defined, with the last coordinate element
-        representing time (or QEC round).
+        representing time (or QEC cycle).
     stab_coords
         Coordinates of the X and Z stabilizers defined in the encoded version
         of ``unencoded_circuit`` for each of the (logical) qubits.
@@ -282,9 +283,8 @@ def get_detector_indices_for_subgraphs_from_circuit(
     -------
     det_inds
         Detector indices inside each of the observing regions.
-        The length of ``det_inds`` matches the number of observables in the
-        encoded version of ``unencoded_circuit`` and they are sorted following
-        the observable indices.
+        The length of ``det_inds`` matches the number of observables in
+        ``unencoded_circuit`` and they are sorted following the observable indices.
     """
     if not isinstance(unencoded_circuit, stim.Circuit):
         raise TypeError(
