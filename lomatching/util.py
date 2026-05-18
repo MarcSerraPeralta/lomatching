@@ -254,7 +254,7 @@ def remove_obs_except(
 
 def get_detector_indices_for_subgraphs_from_circuit(
     unencoded_circuit: stim.Circuit,
-    det_to_coords: dict[int, list[float]],
+    det_to_coords: dict[int, list[float]] | dict[int, Sequence[int | float]],
     stab_coords: Sequence[dict[str, Collection[Coords]]],
 ) -> list[npt.NDArray[np.int64]]:
     """Returns the detector indices for each of the observing regions in
@@ -299,7 +299,9 @@ def get_detector_indices_for_subgraphs_from_circuit(
     if any(not isinstance(d, int) for d in det_to_coords):
         raise TypeError("Keys in 'det_to_coords' must be ints.")
     if any(not isinstance(c, Sequence) for c in det_to_coords.values()):
-        raise TypeError("Values in 'det_to_coords' must be ints.")
+        raise TypeError(
+            "Values in 'det_to_coords' must be sequences of ints or floats."
+        )
 
     if any(not isinstance(l, dict) for l in stab_coords):
         raise TypeError("Elements of 'stab_coords' must be dictionaries.")
@@ -318,8 +320,7 @@ def get_detector_indices_for_subgraphs_from_circuit(
             if any(not isinstance(i, (float, int)) for i in coord):
                 raise TypeError("Coordinates must be tuple[float].")
 
-    det_to_coords = {d: tuple(map(float, c)) for d, c in det_to_coords.items()}
-    coords_to_det = {c: d for d, c in det_to_coords.items()}
+    coords_to_det = {tuple(map(float, c)): d for d, c in det_to_coords.items()}
 
     # get (logical qubit, stabilizer type, time) for each QEC cycle to
     # get all detectors for the given (logical qubit, stability type, time).
@@ -331,6 +332,7 @@ def get_detector_indices_for_subgraphs_from_circuit(
         for time, pauli in obs_region.items():
             for l_ind, p_ind in enumerate(pauli):
                 # p_ind: 0=I, 1=X, 2=Y, 3=Z.
+                # for Y, two det slices need to be added: X and Z.
                 if p_ind == 0:
                     continue
                 if p_ind in [1, 2]:
@@ -343,6 +345,7 @@ def get_detector_indices_for_subgraphs_from_circuit(
             coords = [(*c, time) for c in stab_coords[l_ind][stab]]
             inds += [coords_to_det[c] for c in coords]
         # indices need to be sorted to match the indices order in the dem!
+        # (when doing syndrome[det_inds])
         det_inds.append(np.array(sorted(inds), dtype=int))
 
     return det_inds
@@ -444,6 +447,7 @@ def get_detector_indices_for_subgraphs_from_dem(
             coords = [(*c, time) for c in stab_coords[l_ind][stab]]
             inds += [coords_to_det[c] for c in coords]
         # indices need to be sorted to match the indices order in the dem!
+        # (when doing syndrome[det_inds])
         det_inds.append(np.array(sorted(inds), dtype=int))
 
     return det_inds
