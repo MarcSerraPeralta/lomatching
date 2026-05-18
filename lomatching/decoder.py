@@ -9,7 +9,7 @@ from ldpc import BpDecoder
 from scipy.sparse import spmatrix
 
 from .util import (
-    get_detector_indices_for_subgraphs,
+    get_detector_indices_for_subgraphs_from_dem,
     get_circuit_subgraph,
     Coords,
     combine_probs,
@@ -114,7 +114,9 @@ class MoMatching:
             allow_gauge_detectors=allow_gauge_detectors
         )
 
-        det_inds_subgraphs = get_detector_indices_for_subgraphs(dem, stab_coords)
+        det_inds_subgraphs = get_detector_indices_for_subgraphs_from_dem(
+            dem, stab_coords
+        )
 
         dem_subgraphs: list[stim.DetectorErrorModel] = []
         for obs in range(encoded_circuit.num_observables):
@@ -248,7 +250,7 @@ class BeliefMoMatching:
             **kargs_bp,
         )
 
-        self._det_inds_subgraphs = get_detector_indices_for_subgraphs(
+        self._det_inds_subgraphs = get_detector_indices_for_subgraphs_from_dem(
             self._dem, stab_coords
         )
 

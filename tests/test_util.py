@@ -11,7 +11,8 @@ from lomatching.util import (
     get_all_reset_paulistrings,
     commute,
     remove_obs_except,
-    get_detector_indices_for_subgraphs,
+    get_detector_indices_for_subgraphs_from_dem,
+    get_detector_indices_for_subgraphs_from_circuit,
     get_circuit_subgraph,
 )
 
@@ -246,7 +247,69 @@ def test_remove_obs_except():
     return
 
 
-def test_get_circuit_subgraph():
+def test_get_detector_indices_for_subgraphs_from_circuit():
+    layouts = unrot_surface_codes(2, distance=3)
+    model = IncResMeasNoiseModel.from_layouts(*layouts)
+    model.setup.set_var_param("prob", 1e-3)
+    detectors = Detectors.from_layouts(*layouts, frame="pre-gate")
+    stab_coords = [{} for _ in layouts]
+    for l, layout in enumerate(layouts):
+        coords = layout.anc_coords
+        stab_coords[l][f"Z"] = [v for k, v in coords.items() if k[0] == "Z"]
+        stab_coords[l][f"X"] = [v for k, v in coords.items() if k[0] == "X"]
+
+    unencoded_circuit = stim.Circuit(
+        """
+        R 0 1
+        TICK
+        CNOT 0 1
+        TICK
+        H 0
+        S 1
+        TICK
+        H 0
+        S 1
+        TICK
+        MZ 0 1
+        """
+    )
+    schedule = schedule_from_circuit(unencoded_circuit, layouts, gate_to_iterator)
+    encoded_circuit = experiment_from_schedule(
+        schedule, model, detectors, anc_reset=True, anc_detectors=None
+    )
+    det_to_coords = encoded_circuit.get_detector_coordinates()
+
+    set_det_inds = get_detector_indices_for_subgraphs_from_circuit(
+        unencoded_circuit, det_to_coords, stab_coords
+    )
+
+    for det_inds in set_det_inds:
+        circuit_subgraph = get_circuit_subgraph(encoded_circuit, det_inds)
+        dem_subgraph = circuit_subgraph.detector_error_model(decompose_errors=True)
+
+        # check that the decoding subgraph is a graph
+        for instr in dem_subgraph.flattened():
+            if instr.type != "error":
+                continue
+
+            dets = [t for t in instr.targets_copy() if t.is_relative_detector_id()]
+            contains_separator = any(
+                [True for t in instr.targets_copy() if t.is_separator()]
+            )
+            # because the incoming noise model is applied both before and after the
+            # logical gates, there are X and Z incoming errors that correspond to
+            # hyperedges.
+            if not contains_separator:
+                assert len(dets) <= 2
+            else:
+                assert len(dets) == 4
+
+        assert len(det_inds) == dem_subgraph.num_detectors
+
+    return
+
+
+def test_get_detector_indices_for_subgraphs_from_dem():
     layouts = unrot_surface_codes(2, distance=3)
     model = IncResMeasNoiseModel.from_layouts(*layouts)
     model.setup.set_var_param("prob", 1e-3)
@@ -278,7 +341,7 @@ def test_get_circuit_subgraph():
     )
     dem = encoded_circuit.detector_error_model()
 
-    set_det_inds = get_detector_indices_for_subgraphs(dem, stab_coords)
+    set_det_inds = get_detector_indices_for_subgraphs_from_dem(dem, stab_coords)
 
     for det_inds in set_det_inds:
         circuit_subgraph = get_circuit_subgraph(encoded_circuit, det_inds)
