@@ -258,7 +258,7 @@ def get_detector_indices_for_subgraphs_from_circuit(
     stab_coords: Sequence[dict[str, Collection[Coords]]],
 ) -> list[npt.NDArray[np.int64]]:
     """Returns the detector indices for each of the observing regions in
-    the given pair of unencoded and encoded circuits.
+    the given unencoded circuit.
 
     Parameters
     ----------
@@ -271,18 +271,20 @@ def get_detector_indices_for_subgraphs_from_circuit(
         All detectors must have coordinates defined, with the last coordinate element
         representing time (or QEC round).
     stab_coords
-        Coordinates of the X and Z stabilizers defined in `encoded_circuit` for
-        each of the (logical) qubits. The ``i``th element in the list must correspond
-        to logical qubit index ``i``. Each element must be a dictionary with keys
-        ``"X"`` and ``"Z"``, and values corresponding to the ancilla coordinates of
-        the specific stabilizer type.
+        Coordinates of the X and Z stabilizers defined in the encoded version
+        of ``unencoded_circuit`` for each of the (logical) qubits.
+        The ``i``th element in the list must correspond to logical qubit index ``i``.
+        Each element must be a dictionary with keys ``"X"`` and ``"Z"``,
+        and values corresponding to the ancilla coordinates of the specific
+        stabilizer type.
 
     Returns
     -------
     det_inds
         Detector indices inside each of the observing regions.
-        The length of ``det_inds`` matches the number of observables in
-        ``encoded_circuit`` and they are sorted following the observable indices.
+        The length of ``det_inds`` matches the number of observables in the
+        encoded version of ``unencoded_circuit`` and they are sorted following
+        the observable indices.
     """
     if not isinstance(unencoded_circuit, stim.Circuit):
         raise TypeError(
@@ -360,7 +362,7 @@ def get_detector_indices_for_subgraphs_from_dem(
         All detectors must have coordinates defined, with the last coordinate element
         representing time (or QEC round).
     stab_coords
-        Coordinates of the X and Z stabilizers defined in `encoded_circuit` for
+        Coordinates of the X and Z stabilizers defined in the encoded circuit for
         each of the (logical) qubits. The ``i``th element in the list must correspond
         to logical qubit index ``i``. Each element must be a dictionary with keys
         ``"X"`` and ``"Z"``, and values corresponding to the ancilla coordinates of
