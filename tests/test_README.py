@@ -1,9 +1,10 @@
 def test_README():
+    import numpy as np
     import stim
 
     from surface_sim.models import CircuitNoiseModel
     from surface_sim import Detectors
-    from surface_sim.experiments import schedule_from_circuit, experiment_from_schedule
+    from surface_sim.experiments import experiment_from_circuit
     from surface_sim.circuit_blocks.unrot_surface_code_css import gate_to_iterator
     from surface_sim.layouts import unrot_surface_codes
 
@@ -12,12 +13,12 @@ def test_README():
     # circuit considered
     circuit = stim.Circuit(
         """
-    RX 0
-    RZ 1
-    TICK
-    CNOT 0 1
-    MX 0 1
-    """
+        RX 0
+        RZ 1
+        TICK
+        CNOT 0 1
+        MX 0 1
+        """
     )
 
     # generate encoded circuit
@@ -26,9 +27,8 @@ def test_README():
     model = CircuitNoiseModel.from_layouts(*layouts)
     model.setup.set_var_param("prob", 1e-3)
 
-    schedule = schedule_from_circuit(circuit, layouts, gate_to_iterator)
-    encoded_circuit = experiment_from_schedule(
-        schedule, model, detectors, anc_reset=True, anc_detectors=None
+    encoded_circuit = experiment_from_circuit(
+        circuit, layouts, model, detectors, gate_to_iterator, anc_reset=True
     )
 
     # prepare inputs for MoMatching
@@ -49,5 +49,7 @@ def test_README():
 
     predictions = decoder.decode_batch(syndromes)
     log_errors = (predictions != log_flips).any(axis=1)
+
+    assert np.average(log_errors) <= 0.1
 
     return

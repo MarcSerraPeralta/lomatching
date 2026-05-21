@@ -10,7 +10,7 @@ from scipy.sparse import spmatrix, csc_matrix
 import stim
 
 Coords = tuple[float, ...]
-PauliRegion = dict[int, stim.PauliString]
+PauliRegion = dict[int | float, stim.PauliString]
 
 RESET_INSTRS = ["R", "RX", "RY", "RZ", "MR", "MRX", "MRY", "MRZ"]
 
@@ -38,7 +38,7 @@ def get_reliable_observables(circuit: stim.Circuit) -> list[set[int]]:
 
     resets = get_all_reset_paulistrings(circuit)
     obs_regions = {
-        obs_id: get_observing_region(circuit, obs_id)
+        obs_id: get_observing_region(circuit, obs_id)[0]
         for obs_id in range(circuit.num_observables)
     }
 
@@ -125,7 +125,7 @@ def get_all_reset_paulistrings(circuit: stim.Circuit) -> dict[int, PauliRegion]:
 
 def get_observing_region(
     circuit: stim.Circuit, observable: Collection[int] | int
-) -> PauliRegion:
+) -> tuple[PauliRegion, PauliRegion]:
     """Returns the observing region of an observable in a circuit.
 
     Parameters
@@ -146,6 +146,9 @@ def get_observing_region(
         `stim.PauliString` at the corresponding `TICK` location. If a `stim.PauliString`
         is empty at the `TICK`, the corresponding `TICK` index will not be present
         in the dictionary. See `stim.Circuit.detecting_regions` for more information.
+    log_meas_stabs
+        Stabilizers to be reconstructed from the logical measurements for the given
+        observable. Logical measurements are assumed to be at half-integer times.
     """
     if not isinstance(circuit, stim.Circuit):
         raise TypeError(
@@ -182,9 +185,36 @@ def get_observing_region(
         new_circuit.append(new_obs)
 
     l0_target = stim.DemTarget("L0")
-    return new_circuit.detecting_regions(
+    obs_region = new_circuit.detecting_regions(
         targets=[l0_target], ignore_anticommutation_errors=True
     )[l0_target]
+
+    # need to manually add the reconstructed stabilizers from the logical measurements
+    # because they are not tracked by TICKs.
+    log_meas_stabs: PauliRegion = {}
+    curr_tick, curr_meas = 0, 0
+    m = {"MX": "X", "MY": "Y", "MZ": "Z", "M": "Z"}
+    log_meas: dict[int, tuple[float, stim.PauliString]] = {}
+    for instr in circuit.flattened():
+        if instr.name == "TICK":
+            curr_tick += 1
+        elif instr.name in ("MX", "MY", "MZ", "M"):
+            for target in instr.targets_copy():
+                p = stim.PauliString(f"{m[instr.name]}{target.value}")
+                log_meas[curr_meas] = (curr_tick - 0.5, p)
+                curr_meas += 1
+        elif instr.name == "OBSERVABLE_INCLUDE":
+            if instr.gate_args_copy()[0] not in observable:
+                continue
+            targets = [
+                t.value for t in instr.targets_copy() if t.is_measurement_record_target
+            ]
+            for rec_t in targets:
+                time, p = log_meas[curr_meas + rec_t]
+                obs_p = obs_region.get(time, stim.PauliString(circuit.num_qubits))
+                log_meas_stabs[time] = obs_p * p
+
+    return obs_region, log_meas_stabs
 
 
 def remove_obs_except(
@@ -326,10 +356,10 @@ def get_detector_indices_for_subgraphs_from_circuit(
     # get all detectors for the given (logical qubit, stability type, time).
     det_inds: list[npt.NDArray[np.int64]] = []
     for obs in range(unencoded_circuit.num_observables):
-        obs_region = get_observing_region(unencoded_circuit, [obs])
+        obs_region, log_meas_stabs = get_observing_region(unencoded_circuit, [obs])
 
         det_slices: set[tuple[int, str, float]] = set()
-        for time, pauli in obs_region.items():
+        for time, pauli in (obs_region | log_meas_stabs).items():
             for l_ind, p_ind in enumerate(pauli):
                 # p_ind: 0=I, 1=X, 2=Y, 3=Z.
                 # for Y, two det slices need to be added: X and Z.

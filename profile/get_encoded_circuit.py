@@ -3,7 +3,7 @@ import stim
 from surface_sim.setups import CircuitNoiseSetup
 from surface_sim.models import CircuitNoiseModel
 from surface_sim import Detectors
-from surface_sim.experiments import schedule_from_circuit, experiment_from_schedule
+from surface_sim.experiments import experiment_from_circuit
 from surface_sim.circuit_blocks.unrot_surface_code_css import gate_to_iterator
 from surface_sim.layouts import unrot_surface_codes
 
@@ -35,9 +35,8 @@ unencoded_circuit = stim.Circuit(
     MZ 0 1
     """
 )
-schedule = schedule_from_circuit(unencoded_circuit, layouts, gate_to_iterator)
-encoded_circuit = experiment_from_schedule(
-    schedule, model, detectors, anc_reset=True, anc_detectors=None
+encoded_circuit = experiment_from_circuit(
+    unencoded_circuit, layouts, model, detectors, gate_to_iterator, anc_reset=True
 )
 
 encoded_circuit.to_file("encoded_circuit.stim")

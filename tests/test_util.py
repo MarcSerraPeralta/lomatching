@@ -1,7 +1,7 @@
 import stim
 from surface_sim.models import IncResMeasNoiseModel
 from surface_sim import Detectors
-from surface_sim.experiments import schedule_from_circuit, experiment_from_schedule
+from surface_sim.experiments import experiment_from_circuit
 from surface_sim.circuit_blocks.unrot_surface_code_css import gate_to_iterator
 from surface_sim.layouts import unrot_surface_codes
 
@@ -41,7 +41,7 @@ def test_get_observing_region():
         """
     )
 
-    obs_region = get_observing_region(circuit, observable=[0])
+    obs_region, log_meas_stabs = get_observing_region(circuit, observable=[0])
     expected_obs_region = {
         0: stim.PauliString("+Z_"),
         1: stim.PauliString("+X_"),
@@ -51,16 +51,23 @@ def test_get_observing_region():
         5: stim.PauliString("+_Z"),
         6: stim.PauliString("+_Z"),
     }
+    expected_log_meas_stabs = {6.5: stim.PauliString("+_Z")}
     assert expected_obs_region == obs_region
+    assert expected_log_meas_stabs == log_meas_stabs
 
-    obs_region = get_observing_region(circuit, observable=[1])
+    obs_region, log_meas_stabs = get_observing_region(circuit, observable=[1])
     expected_obs_region = {
         3: stim.PauliString("+_Z"),
         4: stim.PauliString("+XZ"),
         5: stim.PauliString("+_Z"),
         6: stim.PauliString("+_Z"),
     }
+    expected_log_meas_stabs = {
+        4.5: stim.PauliString("+X_"),
+        6.5: stim.PauliString("+_Z"),
+    }
     assert expected_obs_region == obs_region
+    assert expected_log_meas_stabs == log_meas_stabs
 
     return
 
@@ -271,17 +278,19 @@ def test_get_detector_indices_for_subgraphs_from_circuit():
         S 1
         TICK
         MZ 0 1
+        OBSERVABLE_INCLUDE(0) rec[-2]
+        OBSERVABLE_INCLUDE(1) rec[-1]
         """
     )
-    schedule = schedule_from_circuit(unencoded_circuit, layouts, gate_to_iterator)
-    encoded_circuit = experiment_from_schedule(
-        schedule, model, detectors, anc_reset=True, anc_detectors=None
+    encoded_circuit = experiment_from_circuit(
+        unencoded_circuit, layouts, model, detectors, gate_to_iterator, anc_reset=True
     )
     det_to_coords = encoded_circuit.get_detector_coordinates()
 
     set_det_inds = get_detector_indices_for_subgraphs_from_circuit(
         unencoded_circuit, det_to_coords, stab_coords
     )
+    assert len(set_det_inds) == 2
 
     for det_inds in set_det_inds:
         circuit_subgraph = get_circuit_subgraph(encoded_circuit, det_inds)
@@ -333,15 +342,17 @@ def test_get_detector_indices_for_subgraphs_from_dem():
         S 1
         TICK
         MZ 0 1
+        OBSERVABLE_INCLUDE(0) rec[-2]
+        OBSERVABLE_INCLUDE(1) rec[-1]
         """
     )
-    schedule = schedule_from_circuit(unencoded_circuit, layouts, gate_to_iterator)
-    encoded_circuit = experiment_from_schedule(
-        schedule, model, detectors, anc_reset=True, anc_detectors=None
+    encoded_circuit = experiment_from_circuit(
+        unencoded_circuit, layouts, model, detectors, gate_to_iterator, anc_reset=True
     )
     dem = encoded_circuit.detector_error_model()
 
     set_det_inds = get_detector_indices_for_subgraphs_from_dem(dem, stab_coords)
+    assert len(set_det_inds) == 2
 
     for det_inds in set_det_inds:
         circuit_subgraph = get_circuit_subgraph(encoded_circuit, det_inds)
