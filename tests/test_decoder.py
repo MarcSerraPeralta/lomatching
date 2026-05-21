@@ -2,7 +2,7 @@ import numpy as np
 import stim
 from surface_sim.models import CircuitNoiseModel
 from surface_sim import Detectors
-from surface_sim.experiments import schedule_from_circuit, experiment_from_schedule
+from surface_sim.experiments import experiment_from_circuit
 from surface_sim.circuit_blocks.unrot_surface_code_css import gate_to_iterator
 from surface_sim.layouts import unrot_surface_codes
 
@@ -45,9 +45,8 @@ def test_MoMatching():
         MZ 0 1
         """
     )
-    schedule = schedule_from_circuit(unencoded_circuit, layouts, gate_to_iterator)
-    encoded_circuit = experiment_from_schedule(
-        schedule, model, detectors, anc_reset=True, anc_detectors=None
+    encoded_circuit = experiment_from_circuit(
+        unencoded_circuit, layouts, model, detectors, gate_to_iterator, anc_reset=True
     )
 
     decoder = MoMatching.from_circuit(encoded_circuit, stab_coords)
@@ -89,11 +88,13 @@ def test_MoMatching_performance():
                     stab_coords[l][f"Z"] = [v for k, v in coords.items() if k[0] == "Z"]
                     stab_coords[l][f"X"] = [v for k, v in coords.items() if k[0] == "X"]
 
-                schedule = schedule_from_circuit(
-                    unencoded_circuit, layouts, gate_to_iterator
-                )
-                encoded_circuit = experiment_from_schedule(
-                    schedule, model, detectors, anc_reset=True, anc_detectors=None
+                encoded_circuit = experiment_from_circuit(
+                    unencoded_circuit,
+                    layouts,
+                    model,
+                    detectors,
+                    gate_to_iterator,
+                    anc_reset=True,
                 )
                 encoded_circuit = remove_obs_except(
                     encoded_circuit, get_reliable_observables(encoded_circuit)
@@ -142,9 +143,8 @@ def test_BeliefMoMatching():
         MZ 0 1
         """
     )
-    schedule = schedule_from_circuit(unencoded_circuit, layouts, gate_to_iterator)
-    encoded_circuit = experiment_from_schedule(
-        schedule, model, detectors, anc_reset=True, anc_detectors=None
+    encoded_circuit = experiment_from_circuit(
+        unencoded_circuit, layouts, model, detectors, gate_to_iterator, anc_reset=True
     )
 
     decoder = BeliefMoMatching(encoded_circuit, stab_coords)
@@ -185,11 +185,13 @@ def test_BeliefMoMatching_performance():
                     stab_coords[l][f"Z"] = [v for k, v in coords.items() if k[0] == "Z"]
                     stab_coords[l][f"X"] = [v for k, v in coords.items() if k[0] == "X"]
 
-                schedule = schedule_from_circuit(
-                    unencoded_circuit, layouts, gate_to_iterator
-                )
-                encoded_circuit = experiment_from_schedule(
-                    schedule, model, detectors, anc_reset=True, anc_detectors=None
+                encoded_circuit = experiment_from_circuit(
+                    unencoded_circuit,
+                    layouts,
+                    model,
+                    detectors,
+                    gate_to_iterator,
+                    anc_reset=True,
                 )
                 encoded_circuit = remove_obs_except(
                     encoded_circuit, get_reliable_observables(encoded_circuit)
