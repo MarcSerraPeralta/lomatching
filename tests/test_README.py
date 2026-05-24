@@ -8,7 +8,7 @@ def test_README():
     from surface_sim.circuit_blocks.unrot_surface_code_css import gate_to_iterator
     from surface_sim.layouts import unrot_surface_codes
 
-    from lomatching import MoMatching, get_reliable_observables, remove_obs_except
+    from lomatching import MoMatching
 
     # circuit considered
     circuit = stim.Circuit(
@@ -18,6 +18,7 @@ def test_README():
         TICK
         CNOT 0 1
         MX 0 1
+        OBSERVABLE_INCLUDE(0) rec[-1] rec[-2]
         """
     )
 
@@ -37,9 +38,6 @@ def test_README():
         coords = layout.anc_coords
         stab_coords[l][f"Z"] = [v for k, v in coords.items() if k[0] == "Z"]
         stab_coords[l][f"X"] = [v for k, v in coords.items() if k[0] == "X"]
-
-    reliable_obs = get_reliable_observables(encoded_circuit)
-    encoded_circuit = remove_obs_except(encoded_circuit, reliable_obs)
 
     decoder = MoMatching.from_circuit(encoded_circuit, stab_coords)
 

@@ -10,7 +10,6 @@ from lomatching.util import (
     get_reliable_observables,
     get_all_reset_paulistrings,
     commute,
-    remove_obs_except,
     get_detector_indices_for_subgraphs_from_dem,
     get_detector_indices_for_subgraphs_from_circuit,
     get_circuit_subgraph,
@@ -213,43 +212,6 @@ def test_get_all_reset_paulistrings():
     }
 
     assert resets == expected_resets
-
-    return
-
-
-def test_remove_obs_except():
-    circuit = stim.Circuit(
-        """
-        R 0 1
-        TICK
-        M 0 1
-        TICK
-        CNOT 0 1
-        OBSERVABLE_INCLUDE(0) rec[-1] rec[-2]
-        OBSERVABLE_INCLUDE(1) rec[-1]
-        H 0
-        TICK
-        M 0 1
-        """
-    )
-
-    new_circuit = remove_obs_except(circuit, [[0, 1]])
-
-    expected_circuit = stim.Circuit(
-        """
-        R 0 1
-        TICK
-        M 0 1
-        TICK
-        CNOT 0 1
-        H 0
-        TICK
-        M 0 1
-        OBSERVABLE_INCLUDE(0) rec[-4]
-        """
-    )
-
-    assert new_circuit == expected_circuit
 
     return
 

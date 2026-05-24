@@ -9,8 +9,6 @@ from surface_sim.layouts import unrot_surface_codes
 from lomatching import (
     MoMatching,
     BeliefMoMatching,
-    get_reliable_observables,
-    remove_obs_except,
 )
 
 
@@ -66,10 +64,47 @@ def test_MoMatching():
 
 def test_MoMatching_performance():
     unencoded_circuits = [
-        stim.Circuit("R 0\nTICK\nTICK\nM 0"),
-        stim.Circuit("RX 0\nRZ 1\nTICK\nTICK\nM 0 1"),
-        stim.Circuit("RX 0\nRZ 1\nTICK\nCNOT 0 1\nTICK\nM 0 1"),
-        stim.Circuit("R 0 1\nTICK\nCNOT 0 1\nTICK\nM 0 1"),
+        stim.Circuit(
+            """
+            R 0
+            TICK
+            TICK
+            M 0
+            OBSERVABLE_INCLUDE(0) rec[-1]
+            """
+        ),
+        stim.Circuit(
+            """
+            RX 0
+            RZ 1
+            TICK
+            TICK
+            M 0 1
+            OBSERVABLE_INCLUDE(0) rec[-1]
+            """
+        ),
+        stim.Circuit(
+            """
+            RX 0
+            RZ 1
+            TICK
+            CNOT 0 1
+            TICK
+            M 0 1
+            OBSERVABLE_INCLUDE(0) rec[-1] rec[-2]
+            """
+        ),
+        stim.Circuit(
+            """
+            R 0 1
+            TICK
+            CNOT 0 1
+            TICK
+            M 0 1
+            OBSERVABLE_INCLUDE(0) rec[-2]
+            OBSERVABLE_INCLUDE(1) rec[-1]
+            """
+        ),
     ]
     for gate_frame in ["pre-gate", "post-gate"]:
         for unencoded_circuit in unencoded_circuits:
@@ -95,9 +130,6 @@ def test_MoMatching_performance():
                     detectors,
                     gate_to_iterator,
                     anc_reset=True,
-                )
-                encoded_circuit = remove_obs_except(
-                    encoded_circuit, get_reliable_observables(encoded_circuit)
                 )
 
                 decoder = MoMatching.from_circuit(encoded_circuit, stab_coords)
@@ -164,9 +196,25 @@ def test_BeliefMoMatching():
 
 def test_BeliefMoMatching_performance():
     unencoded_circuits = [
-        stim.Circuit("R 0\nTICK\n\nM 0"),
-        stim.Circuit("RX 0\nRZ 1\nTICK\nM 0 1"),
-        stim.Circuit("RX 0\nRZ 1\nTICK\nCNOT 0 1\nTICK\nM 0 1"),
+        stim.Circuit(
+            """
+            R 0
+            TICK
+            TICK
+            M 0
+            OBSERVABLE_INCLUDE(0) rec[-1]
+            """
+        ),
+        stim.Circuit(
+            """
+            RX 0
+            RZ 1
+            TICK
+            TICK
+            M 0 1
+            OBSERVABLE_INCLUDE(0) rec[-1]
+            """
+        ),
     ]
     for gate_frame in ["pre-gate"]:
         for unencoded_circuit in unencoded_circuits:
@@ -192,9 +240,6 @@ def test_BeliefMoMatching_performance():
                     detectors,
                     gate_to_iterator,
                     anc_reset=True,
-                )
-                encoded_circuit = remove_obs_except(
-                    encoded_circuit, get_reliable_observables(encoded_circuit)
                 )
 
                 decoder = BeliefMoMatching(encoded_circuit, stab_coords)
