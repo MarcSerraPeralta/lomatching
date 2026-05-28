@@ -195,12 +195,13 @@ def get_observing_region(
     curr_tick, curr_meas = 0, 0
     m = {"MX": "X", "MY": "Y", "MZ": "Z", "M": "Z"}
     log_meas: dict[int, tuple[float, stim.PauliString]] = {}
+    identity = stim.PauliString(circuit.num_qubits)
     for instr in circuit.flattened():
         if instr.name == "TICK":
             curr_tick += 1
         elif instr.name in ("MX", "MY", "MZ", "M"):
             for target in instr.targets_copy():
-                p = stim.PauliString(f"{m[instr.name]}{target.value}")
+                p = identity * stim.PauliString(f"{m[instr.name]}{target.value}")
                 log_meas[curr_meas] = (curr_tick - 0.5, p)
                 curr_meas += 1
         elif instr.name == "OBSERVABLE_INCLUDE":
@@ -211,7 +212,7 @@ def get_observing_region(
             ]
             for rec_t in targets:
                 time, p = log_meas[curr_meas + rec_t]
-                obs_p = obs_region.get(time, stim.PauliString(circuit.num_qubits))
+                obs_p = log_meas_stabs.get(time, stim.PauliString(circuit.num_qubits))
                 log_meas_stabs[time] = obs_p * p
 
     return obs_region, log_meas_stabs
@@ -319,6 +320,7 @@ def get_detector_indices_for_subgraphs_from_circuit(
 def get_detector_indices_for_subgraphs_from_dem(
     dem: stim.DetectorErrorModel,
     stab_coords: Sequence[dict[str, Collection[Coords]]],
+    filter_dets: Collection[int] | None = None,
 ) -> list[npt.NDArray[np.int64]]:
     """Returns the detector indices for each of the observing regions in
     the given detector error model.
@@ -335,6 +337,9 @@ def get_detector_indices_for_subgraphs_from_dem(
         to logical qubit index ``i``. Each element must be a dictionary with keys
         ``"X"`` and ``"Z"``, and values corresponding to the ancilla coordinates of
         the specific stabilizer type.
+    filter_dets
+        Set of detectors to use when building the boundary edges that are used
+        to obtain the observing regions.
 
     Returns
     -------
@@ -363,6 +368,13 @@ def get_detector_indices_for_subgraphs_from_dem(
                 raise TypeError("Coordinates must be tuples.")
             if any(not isinstance(i, (float, int)) for i in coord):
                 raise TypeError("Coordinates must be tuple[float].")
+    if filter_dets is not None and not isinstance(filter_dets, Collection):
+        raise TypeError(
+            f"'filter_dets' must be a set, but {type(filter_dets)} was given."
+        )
+    if filter_dets is not None:
+        # faster lookup of element inside 'filter_dets'
+        filter_dets = set(filter_dets)
 
     det_to_coords = dem.get_detector_coordinates()
     if any(c == [] for c in det_to_coords.values()):
@@ -387,6 +399,8 @@ def get_detector_indices_for_subgraphs_from_dem(
 
         dets = [t.val for t in instr.targets_copy() if t.is_relative_detector_id()]
         if len(dets) != 1:
+            continue
+        if (filter_dets is not None) and (dets[0] not in filter_dets):
             continue
 
         obs = [t.val for t in instr.targets_copy() if t.is_logical_observable_id()]
@@ -434,6 +448,9 @@ def get_circuit_subgraph(
         raise TypeError(
             f"'det_inds' must be a collection, but {type(det_inds)} was given."
         )
+    if not isinstance(det_inds, set):
+        # faster lookup of element inside 'det_inds'
+        det_inds = set(det_inds)
     if any(not isinstance(d, (int, np.int64)) for d in det_inds):
         raise TypeError("Elements in 'det_inds' must be integers.")
     if obs_inds is None:
@@ -442,6 +459,9 @@ def get_circuit_subgraph(
         raise TypeError(
             f"'obs_inds' must be a collection, but {type(obs_inds)} was given."
         )
+    if not isinstance(obs_inds, set):
+        # faster lookup of element inside 'obs_inds'
+        obs_inds = set(obs_inds)
     if any(not isinstance(d, (int, np.int64)) for d in obs_inds):
         raise TypeError("Elements in 'obs_inds' must be integers.")
 
@@ -473,9 +493,7 @@ def g(p: float, q: float) -> float:
 
 
 @nb.jit()
-def combine_probs(
-    probs: tuple[float], list_indices: list[list[int, ...]]
-) -> list[float]:
+def combine_probs(probs: tuple[float], list_indices: list[list[int]]) -> list[float]:
     """For numba to work, ``list_indices`` must be numba typed, see ``convert_to_numba_type``."""
     new_probs: list[float] = []
     for indices in list_indices:
