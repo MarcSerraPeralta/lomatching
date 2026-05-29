@@ -225,6 +225,7 @@ def get_detector_indices_for_subgraphs_from_circuit(
 ) -> list[npt.NDArray[np.int64]]:
     """Returns the detector indices for each of the observing regions in
     the given unencoded circuit.
+    Note that this function only works for the post-gate frame.
 
     Parameters
     ----------
