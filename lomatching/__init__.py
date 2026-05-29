@@ -2,7 +2,7 @@ from .decoder import MoMatching, BeliefMoMatching
 from .util import get_reliable_observables
 from . import util
 
-__version__ = "0.2.2"
+__version__ = "0.3.0"
 
 __all__ = [
     "MoMatching",
