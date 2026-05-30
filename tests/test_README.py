@@ -36,8 +36,8 @@ def test_README():
     stab_coords = [{} for _ in layouts]
     for l, layout in enumerate(layouts):
         coords = layout.anc_coords
-        stab_coords[l][f"Z"] = [v for k, v in coords.items() if k[0] == "Z"]
-        stab_coords[l][f"X"] = [v for k, v in coords.items() if k[0] == "X"]
+        stab_coords[l]["Z"] = [v for k, v in coords.items() if k[0] == "Z"]
+        stab_coords[l]["X"] = [v for k, v in coords.items() if k[0] == "X"]
 
     decoder = MoMatching.from_circuit(encoded_circuit, stab_coords)
 
